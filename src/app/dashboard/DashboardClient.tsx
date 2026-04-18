@@ -1003,7 +1003,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
                 className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm"
                 onClick={() => setQr(null)}
               >
-                <div className="min-h-full grid place-items-center p-6">
+                <div className="min-h-screen flex items-center justify-center p-6">
                   <div className="flex flex-col items-center gap-5 rise" onClick={(e) => e.stopPropagation()}>
                     <p className="text-base font-semibold">Escaneie com o WhatsApp</p>
                     <div className="relative">
