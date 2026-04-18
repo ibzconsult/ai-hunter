@@ -1,0 +1,2318 @@
+{
+  "name": "[ibusiness] Uazapi QR Loop (4 tentativas)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "47849a55-7b4b-4038-bab2-63badcce4673",
+      "name": "Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -3296,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7aa07460-35c4-4edf-b3c8-3b15ddee0430",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "criar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Criar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "92545f6c-7942-47a9-b0e1-c5e57f591a95",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "reconectar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reconectar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "29338768-fde0-423e-b5eb-c3970f2b2932",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "conectar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Conectar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b421e0fb-cd4d-40d1-bb0d-2a5700bb90d3",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "excluir",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Excluir"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0d5adb37-1907-477e-ab25-5ade41dcfea8",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Status"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "4b81156c-f568-4e22-925d-5d509eb9c2b3",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -2912,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar senderPhone = $('Normaliza').item.json.senderPhone;\nvar instanceName = \"inst_\" + senderPhone;\nreturn [{\n  json: {\n    senderPhone: senderPhone,\n    instanceName: instanceName\n  }\n}];\n"
+      },
+      "id": "43f19819-c0bc-4fa1-a56e-2cbe3a2b3460",
+      "name": "Criar: Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2288,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, instance_token, status FROM uazapi_instances WHERE phone_cliente = '{{ $json.senderPhone }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "de8a108e-f299-488b-8132-f17676fe3d29",
+      "name": "Criar: Check Exists",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2080,
+        -224
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5fb91fb0-6d88-44e1-8164-d0fd67f5bccd",
+              "leftValue": "={{ $json.instance_token }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e744e510-ec1d-45a6-a9c3-ed70fbeb09df",
+      "name": "Criar: Already Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1888,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/instance/init",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "admintoken",
+              "value": "x5msXscEmmeHtpH1GO6oUiOMcFZa6o86lWPKHPT8ccwL5RykHb"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $(\"Criar: Prepare\").item.json.instanceName }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "1d31d35b-6718-43e1-bde6-ae5c1592b2af",
+      "name": "Criar: Init Instance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1680,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $(\"Normaliza\").item.json.senderPhone, text: \"⚠️ Você já possui uma instância cadastrada.\\n\\nUse */reconectar* para gerar novo QR Code\\nUse */status* para verificar o status\\nUse */excluir* para remover e criar outra\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "42d58485-8c60-424e-84e4-1a056783050d",
+      "name": "Criar: Msg Already Exists",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1680,
+        -128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pmmrTidWYOrHdZ6b",
+          "name": "Uazapi ibusiness"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar initResponse = $input.first().json;\nvar senderPhone = $('Criar: Prepare').item.json.senderPhone;\nvar instanceName = $('Criar: Prepare').item.json.instanceName;\n\nvar instanceToken = initResponse.token || \"\";\nif (!instanceToken && initResponse.data) instanceToken = initResponse.data.token || \"\";\nif (!instanceToken && initResponse.instance) instanceToken = initResponse.instance.token || \"\";\n\nvar instanceId = initResponse.id || \"\";\nif (!instanceId && initResponse.data) instanceId = initResponse.data.id || \"\";\nif (!instanceId && initResponse.instance) instanceId = initResponse.instance.id || \"\";\n\nreturn [{\n  json: {\n    senderPhone: senderPhone,\n    instanceName: instanceName,\n    instanceToken: instanceToken,\n    instanceId: String(instanceId)\n  }\n}];\n"
+      },
+      "id": "449d45c9-e66b-464d-a2ae-66b5f4cf950e",
+      "name": "Criar: Extract Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO uazapi_instances (phone_cliente, instance_id, instance_name, instance_token, status) VALUES ('{{ $json.senderPhone }}', '{{ $json.instanceId }}', '{{ $json.instanceName }}', '{{ $json.instanceToken }}', 'disconnected') ON CONFLICT (phone_cliente) DO UPDATE SET instance_id = EXCLUDED.instance_id, instance_name = EXCLUDED.instance_name, instance_token = EXCLUDED.instance_token, status = 'disconnected'",
+        "options": {}
+      },
+      "id": "26029c03-a435-489e-a416-c6415845e4fa",
+      "name": "Criar: Save DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1280,
+        -320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/instance/connect",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Criar: Extract Token').item.json.instanceToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "4ab8e7f7-86e9-439e-a57c-3004fd6911b9",
+      "name": "Criar: Connect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1088,
+        -320
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "27624a24-0013-474c-8b38-921edfa8f1a2",
+      "name": "Criar: Wait QR",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -880,
+        -320
+      ],
+      "webhookId": "6ea917f6-fe48-4b17-bae3-95cc61a75c75"
+    },
+    {
+      "parameters": {
+        "url": "https://ibusiness.uazapi.com/instance/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Criar: Extract Token').item.json.instanceToken }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "425882df-603a-4d31-a620-549423968905",
+      "name": "Criar: Get Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -688,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar statusResp = $input.first().json;\nvar senderPhone = $('Criar: Prepare').item.json.senderPhone;\n\nvar qrcode = statusResp.qrcode || statusResp.qr || statusResp.qr_code || \"\";\nif (!qrcode && statusResp.data) {\n  qrcode = statusResp.data.qrcode || statusResp.data.qr || statusResp.data.qr_code || \"\";\n}\nif (!qrcode && statusResp.instance) {\n  qrcode = statusResp.instance.qrcode || statusResp.instance.qr || \"\";\n}\n\nvar hasQR = qrcode && qrcode.length > 10;\nif (hasQR && qrcode.indexOf(\"data:image\") === -1 && qrcode.length > 100) {\n  qrcode = \"data:image/png;base64,\" + qrcode;\n}\n\nvar status = statusResp.status || statusResp.state || \"\";\nif (statusResp.data) status = statusResp.data.status || statusResp.data.state || status;\nif (statusResp.instance) status = statusResp.instance.status || statusResp.instance.state || status;\n\nreturn [{\n  json: {\n    senderPhone: senderPhone,\n    qrcode: qrcode,\n    hasQR: hasQR,\n    status: status,\n    isBase64: hasQR && qrcode.length > 100\n  }\n}];\n"
+      },
+      "id": "bd2a705a-2e33-4e45-a1cc-234f9468d3b7",
+      "name": "Criar: Process QR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "edeb20da-6f36-47f4-8f71-dc84c15ed88e",
+              "leftValue": "={{ $json.hasQR }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "24a5599b-7716-4e06-b69f-34f5a2c11c94",
+      "name": "Criar: Has QR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -288,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/media",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.senderPhone }}\",\n  \"type\": \"image\",\n  \"file\": \"{{ $json.qrcode }}\",\n  \"text\": \"✅ Instância criada!\\n\\nEscaneie o QR Code acima...\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "0e1f2a4e-d19e-4256-b207-5e73712158ec",
+      "name": "Criar: Send QR Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -80,
+        -416
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pmmrTidWYOrHdZ6b",
+          "name": "Uazapi ibusiness"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.senderPhone, text: $json.qrcode ? \"📱 QR Code (copie e use):\\n\\n\" + $json.qrcode : \"⚠️ Não foi possível gerar o QR Code. Status: \" + $json.status + \"\\n\\nTente novamente com */reconectar*\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "40fa6268-b014-45d6-a221-c7ab7edf4ecb",
+      "name": "Criar: Send QR Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -80,
+        -224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pmmrTidWYOrHdZ6b",
+          "name": "Uazapi ibusiness"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT instance_id, instance_name, instance_token, status FROM uazapi_instances WHERE phone_cliente = '{{ $('Normaliza').item.json.senderPhone }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "999eeb75-be67-45d3-9dc0-9f5ea43b77fe",
+      "name": "Recon: Lookup DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2288,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fe103e27-f053-410a-b5fa-3eaa97aba593",
+              "leftValue": "={{ $input.first().json.instance_token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "id": "47f7dd8a-96c8-495b-a3c1-69baf2d1443a",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "disconnected",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "c9a088f9-ba1a-4364-a97b-c3950720673a",
+      "name": "Recon: Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2080,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/instance/connect",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Recon: Lookup DB').first().json.instance_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "43a5889c-8d39-4f1c-94ce-a61022d0fc08",
+      "name": "Recon: Connect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1888,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $(\"Normaliza\").item.json.senderPhone, text: \"❌ Nenhuma instância encontrada.\\n\\nUse */criar* para criar uma nova.\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "baa1c3f8-c4ea-407f-b078-b2f01ac09b66",
+      "name": "Recon: Not Found",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1888,
+        192
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pmmrTidWYOrHdZ6b",
+          "name": "Uazapi ibusiness"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "ab59eb55-e117-4013-bc22-7e0eb66aac80",
+      "name": "Recon: Wait QR",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1680,
+        48
+      ],
+      "webhookId": "51870264-1a1f-496f-b032-59efa5095368"
+    },
+    {
+      "parameters": {
+        "url": "https://ibusiness.uazapi.com/instance/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Recon: Lookup DB').first().json.instance_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "9e6abb1e-817d-45e3-9b43-7e9779223e85",
+      "name": "Recon: Get Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1488,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar statusResp = $input.first().json;\nvar senderPhone = $('Normaliza').item.json.senderPhone;\n\nvar qrcode = statusResp.qrcode || statusResp.qr || statusResp.qr_code || \"\";\nif (!qrcode && statusResp.data) {\n  qrcode = statusResp.data.qrcode || statusResp.data.qr || statusResp.data.qr_code || \"\";\n}\nif (!qrcode && statusResp.instance) {\n  qrcode = statusResp.instance.qrcode || statusResp.instance.qr || \"\";\n}\nvar hasQR = qrcode && qrcode.length > 10;\nif (hasQR && qrcode.indexOf(\"data:image\") === -1 && qrcode.length > 100) {\n  qrcode = \"data:image/png;base64,\" + qrcode;\n}\nreturn [{\n  json: {\n    senderPhone: senderPhone,\n    qrcode: qrcode,\n    hasQR: hasQR,\n    isBase64: hasQR && qrcode.length > 100\n  }\n}];\n"
+      },
+      "id": "2d8d7338-3155-4ec7-82be-75b4f21310fd",
+      "name": "Recon: Process QR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f21b7148-6c4f-4652-a784-c427a662d548",
+              "leftValue": "={{ $json.hasQR }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "47198c4b-e62a-45b4-aa45-2ff1b10b4353",
+      "name": "Recon: Has QR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1088,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.senderPhone, text: $json.qrcode ? \"📱 QR Code:\\n\\n\" + $json.qrcode : \"⚠️ QR Code indisponível. Tente novamente em instantes.\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "cdfaf49a-9a17-4f09-a33b-204d3dab626c",
+      "name": "Recon: Send QR Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -880,
+        144
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pmmrTidWYOrHdZ6b",
+          "name": "Uazapi ibusiness"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT instance_id, instance_name, instance_token, status FROM uazapi_instances WHERE phone_cliente = '{{ $('Normaliza').item.json.senderPhone }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "22d2fd0f-96e2-4fc3-ae96-554608f8624d",
+      "name": "Conect: Lookup DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2288,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "29650059-558a-4774-ba47-cae3b3fa9476",
+              "leftValue": "={{ $input.first().json.instance_token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "705d85c7-2450-4eb1-adb8-1300c52f649f",
+      "name": "Conect: Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2080,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/instance/connect",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Conect: Lookup DB').first().json.instance_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "5df4ebe4-6ecf-4063-8984-baa19f1a80a0",
+      "name": "Conect: Connect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1888,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $(\"Normalize Command\").item.json.senderPhone, text: \"❌ Nenhuma instância encontrada.\\n\\nUse */criar* para criar uma nova.\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "8ae3876d-9ca3-419d-8143-59ac195153e4",
+      "name": "Conect: Not Found",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1888,
+        544
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "d836efbf-62bf-45ec-959f-c2101300b69b",
+      "name": "Conect: Wait QR",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1680,
+        384
+      ],
+      "webhookId": "9347e462-db31-4bea-bf1a-87396c3f6520"
+    },
+    {
+      "parameters": {
+        "url": "https://ibusiness.uazapi.com/instance/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Conect: Lookup DB').first().json.instance_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "8aa3e3dd-84d8-41fe-8d21-fcc077d16b26",
+      "name": "Conect: Get Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1488,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar statusResp = $input.first().json;\nvar senderPhone = $('Normalize Command').item.json.senderPhone;\n\nvar qrcode = statusResp.qrcode || statusResp.qr || statusResp.qr_code || \"\";\nif (!qrcode && statusResp.data) {\n  qrcode = statusResp.data.qrcode || statusResp.data.qr || statusResp.data.qr_code || \"\";\n}\nif (!qrcode && statusResp.instance) {\n  qrcode = statusResp.instance.qrcode || statusResp.instance.qr || \"\";\n}\nvar hasQR = qrcode && qrcode.length > 10;\nif (hasQR && qrcode.indexOf(\"data:image\") === -1 && qrcode.length > 100) {\n  qrcode = \"data:image/png;base64,\" + qrcode;\n}\nreturn [{\n  json: {\n    senderPhone: senderPhone,\n    qrcode: qrcode,\n    hasQR: hasQR,\n    isBase64: hasQR && qrcode.length > 100\n  }\n}];\n"
+      },
+      "id": "6b81cf21-70ed-4759-afcc-985f345918bc",
+      "name": "Conect: Process QR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "dd838ca5-85da-4c93-a1cb-a1e2c1247776",
+              "leftValue": "={{ $json.hasQR }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3378219-3941-45ca-b91a-e8aee0339270",
+      "name": "Conect: Has QR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1088,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.senderPhone, text: $json.qrcode ? \"📱 QR Code:\\n\\n\" + $json.qrcode : \"⚠️ QR Code indisponível. Tente novamente em instantes.\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "7b9f42b2-d2e3-4912-9a9a-abb523d70191",
+      "name": "Conect: Send QR Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -880,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT instance_id, instance_name, instance_token FROM uazapi_instances WHERE phone_cliente = '{{ $('Normaliza').item.json.senderPhone }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "473b099b-6655-41ff-9d62-8a011a1bdab2",
+      "name": "Excluir: Lookup DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2288,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "3102f858-e1ca-4983-b1d3-5f59dd5057d9",
+              "leftValue": "={{ $input.first().json.instance_token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dd4442c9-be71-4b79-a331-5652dccee5a4",
+      "name": "Excluir: Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2080,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://ibusiness.uazapi.com/instance",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Excluir: Lookup DB').first().json.instance_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "dd257a86-7dc3-4184-b11f-55ad59420fc8",
+      "name": "Excluir: Delete API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1888,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM uazapi_instances WHERE phone_cliente = '{{ $('Normaliza').item.json.senderPhone }}'",
+        "options": {}
+      },
+      "id": "a4b7abd9-a0ca-4296-b586-4ab498d6c44e",
+      "name": "Excluir: Delete DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1680,
+        736
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "6UAes83KanvyxsPT",
+          "name": "Purru Ticket Pesagem"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $(\"Normalize Command\").item.json.senderPhone, text: \"🗑️ Instância excluída com sucesso.\\n\\nUse */criar* se precisar de uma nova.\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "96cd649a-cd54-4c79-ac33-f778cdb9428a",
+      "name": "Excluir: Msg OK",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1488,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $(\"Normalize Command\").item.json.senderPhone, text: \"❌ Nenhuma instância encontrada para excluir.\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "591824c8-89ee-40a1-a62a-c51e338c8920",
+      "name": "Excluir: Not Found",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1888,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT instance_id, instance_name, instance_token, status, disconnected_at, disconnect_reason FROM uazapi_instances WHERE phone_cliente = '{{ $('Normaliza').item.json.senderPhone }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "91e09740-270a-4881-a9d4-ae7f3009d7b4",
+      "name": "Status: Lookup DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2288,
+        1136
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "39b37320-db51-45ac-8f96-82e91f2cdf45",
+              "leftValue": "={{ $input.first().json.instance_token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1ffbfef-e3a5-421b-a361-89031edb10c8",
+      "name": "Status: Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2080,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ibusiness.uazapi.com/instance/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Status: Lookup DB').first().json.instance_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "f81999fd-37e9-4946-8e49-01d56ec7d742",
+      "name": "Status: Get API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1888,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar apiResp = $input.first().json;\nvar dbData = $('Status: Lookup DB').first().json;\nvar senderPhone = $('Normalize Command').item.json.senderPhone;\n\nvar status = apiResp.status || apiResp.state || \"\";\nif (apiResp.data) status = apiResp.data.status || apiResp.data.state || status;\nif (apiResp.instance) status = apiResp.instance.status || apiResp.instance.state || status;\n\nvar emoji = \"⚪\";\nif (status === \"connected\") emoji = \"🟢\";\nelse if (status === \"connecting\") emoji = \"🟡\";\nelse if (status === \"disconnected\") emoji = \"🔴\";\n\nvar msg = emoji + \" *Status da Instância*\\n\\n\";\nmsg += \"📛 Nome: \" + (dbData.instance_name || \"N/A\") + \"\\n\";\nmsg += \"📊 Status: \" + (status || \"desconhecido\") + \"\\n\";\n\nif (dbData.disconnected_at) {\n  msg += \"⏰ Última desconexão: \" + dbData.disconnected_at + \"\\n\";\n}\nif (dbData.disconnect_reason) {\n  msg += \"📝 Motivo: \" + dbData.disconnect_reason + \"\\n\";\n}\n\nmsg += \"\\n_Comandos: /criar | /reconectar | /conectar | /excluir | /status_\";\n\nreturn [{\n  json: {\n    senderPhone: senderPhone,\n    text: msg\n  }\n}];\n"
+      },
+      "id": "221fe165-4352-40b0-b361-39a7488d4ccb",
+      "name": "Status: Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1680,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.senderPhone, text: $json.text, delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "e2416626-d51c-4ac4-be50-324d8a1562f7",
+      "name": "Status: Send",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1488,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $(\"Normalize Command\").item.json.senderPhone, text: \"❌ Nenhuma instância encontrada.\\nUse */criar* para criar uma nova.\", delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "8a848540-07c1-4065-bdc9-429e6f36168e",
+      "name": "Status: Not Found",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1888,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $(\"Normalize Command\").item.json.senderPhone }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "57d62729-64dc-4c03-9315-c426ba1b3418",
+      "name": "Msg Help",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2288,
+        1440
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pmmrTidWYOrHdZ6b",
+          "name": "Uazapi ibusiness"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "a4912831-09bc-4fe1-b189-f1efbac3e44b",
+      "name": "Cron 5min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2784,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ibusiness.uazapi.com/instance/all",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "admintoken",
+              "value": "x5msXscEmmeHtpH1GO6oUiOMcFZa6o86lWPKHPT8ccwL5RykHb"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "63b8dff7-0cee-4488-880f-ccf03079cb62",
+      "name": "Get All Instances",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2512,
+        1776
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT instance_id, instance_name, instance_token, phone_cliente, status FROM uazapi_instances WHERE status = 'connected'",
+        "options": {}
+      },
+      "id": "337cc69f-0b99-4538-b210-8ccbd3cedb52",
+      "name": "Get DB Connected",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2512,
+        1984
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "50c6b2a8-8dc1-456e-b618-9b0efbbd7daa",
+      "name": "Merge Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -2304,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar items = $input.all();\nvar apiInstances = $('Get All Instances').first().json;\nvar dbInstances = $('Get DB Connected').all().map(function(item) { return item.json; });\n\n// API pode retornar array direto ou dentro de um campo\nvar apiList = [];\nif (Array.isArray(apiInstances)) {\n  apiList = apiInstances;\n} else if (apiInstances.data && Array.isArray(apiInstances.data)) {\n  apiList = apiInstances.data;\n} else if (apiInstances.instances && Array.isArray(apiInstances.instances)) {\n  apiList = apiInstances.instances;\n} else {\n  // Tenta pegar todos os items do nó\n  apiList = $('Get All Instances').all().map(function(item) { return item.json; });\n}\n\n// Monta mapa: token ou name → status da API\nvar apiStatusMap = {};\nfor (var i = 0; i < apiList.length; i++) {\n  var inst = apiList[i];\n  var key = inst.token || inst.name || inst.id || \"\";\n  var st = inst.status || inst.state || \"\";\n  if (inst.instance) st = inst.instance.status || inst.instance.state || st;\n  apiStatusMap[key] = st;\n  // Também mapeia por name\n  if (inst.name) apiStatusMap[inst.name] = st;\n  if (inst.id) apiStatusMap[String(inst.id)] = st;\n}\n\n// Compara: instâncias que no DB são 'connected' mas na API não são\nvar disconnected = [];\nfor (var j = 0; j < dbInstances.length; j++) {\n  var db = dbInstances[j];\n  var apiStatus = apiStatusMap[db.instance_token] || apiStatusMap[db.instance_name] || apiStatusMap[db.instance_id] || \"unknown\";\n  \n  if (apiStatus !== \"connected\") {\n    disconnected.push({\n      phone_cliente: db.phone_cliente,\n      instance_name: db.instance_name,\n      instance_id: db.instance_id,\n      db_status: db.status,\n      api_status: apiStatus\n    });\n  }\n}\n\nif (disconnected.length === 0) {\n  return [{ json: { hasDisconnected: false, count: 0 } }];\n}\n\nreturn disconnected.map(function(d) {\n  d.hasDisconnected = true;\n  d.count = disconnected.length;\n  return { json: d };\n});\n"
+      },
+      "id": "339ca8a7-0bf3-4442-a638-eae87fa3b0ff",
+      "name": "Compare Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2112,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "21795d0d-d67c-4b37-bbe9-626dfe5a128a",
+              "leftValue": "={{ $json.hasDisconnected }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "60b1e6bc-7449-4aa2-bdcf-75ad26905b29",
+      "name": "Has Disconnected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1904,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE uazapi_instances SET status = 'disconnected', disconnected_at = NOW(), disconnect_reason = 'Detectado pelo monitor' WHERE instance_name = '{{ $json.instance_name }}' AND status = 'connected'",
+        "options": {}
+      },
+      "id": "0cd8c227-4dfc-458e-af6c-583a1a11b847",
+      "name": "Update DB Disconnected",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1712,
+        1840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar items = $input.all();\nvar lines = [];\nfor (var i = 0; i < items.length; i++) {\n  var d = items[i].json;\n  lines.push(\"• \" + (d.instance_name || \"N/A\") + \" (cliente: \" + (d.phone_cliente || \"N/A\") + \") → \" + (d.api_status || \"unknown\"));\n}\n\nvar msg = \"🚨 *ALERTA: Instância(s) Desconectada(s)*\\n\\n\";\nmsg += lines.join(\"\\n\");\nmsg += \"\\n\\n_Detectado pelo monitor automático_\";\n\nreturn [{\n  json: {\n    adminPhone: \"5585999717430\",\n    text: msg\n  }\n}];\n"
+      },
+      "id": "36f13a7e-5467-49b1-b9b9-267f17ad9b8c",
+      "name": "Build Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1504,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.adminPhone, text: $json.text, delay: 1000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "82539a5a-f4b7-4d3f-964f-a3747c828fd0",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1312,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nvar apiInstances = $('Get All Instances').first().json;\nvar apiList = [];\nif (Array.isArray(apiInstances)) {\n  apiList = apiInstances;\n} else if (apiInstances.data && Array.isArray(apiInstances.data)) {\n  apiList = apiInstances.data;\n} else if (apiInstances.instances && Array.isArray(apiInstances.instances)) {\n  apiList = apiInstances.instances;\n} else {\n  apiList = $('Get All Instances').all().map(function(item) { return item.json; });\n}\n\n// Atualiza instâncias que estão conectadas na API\nvar connected = [];\nfor (var i = 0; i < apiList.length; i++) {\n  var inst = apiList[i];\n  var st = inst.status || inst.state || \"\";\n  if (inst.instance) st = inst.instance.status || inst.instance.state || st;\n  if (st === \"connected\") {\n    connected.push({\n      name: inst.name || \"\",\n      token: inst.token || \"\",\n      id: inst.id || \"\"\n    });\n  }\n}\n\nif (connected.length === 0) {\n  return [{ json: { noUpdates: true } }];\n}\n\nreturn connected.map(function(c) {\n  return { json: c };\n});\n"
+      },
+      "id": "7783e7ab-ad57-4714-9358-d3e5915bf7cf",
+      "name": "Find Connected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1712,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE uazapi_instances SET status = 'connected', disconnected_at = NULL WHERE (instance_name = '{{ $json.name }}' OR instance_token = '{{ $json.token }}') AND status != 'connected'",
+        "options": {}
+      },
+      "id": "999b82ef-b2aa-4ba3-be4e-e819823f39de",
+      "name": "Sync Connected DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1488,
+        2096
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "C8b3CSbmicm4A90E",
+          "name": "PG-SB Igor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "09d4f71f-9f69-4ed0-9eae-54c5220cd279",
+              "name": "senderPhone",
+              "value": "={{ $json.body.message.sender_pn.replace(\"@s.whatsapp.net\", \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "d2189a27-b461-441a-8823-dbfe1651fd9e",
+              "name": "command",
+              "value": "={{ $json.body.message.text.trim().toLowerCase().replace(/^\\//, \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "f041cde1-db52-4abb-a690-9a73705324ce",
+              "name": "senderName",
+              "value": "={{ $json.body.chat.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3088,
+        512
+      ],
+      "id": "d4d05b59-0b03-4315-8822-f07286011be0",
+      "name": "Normaliza"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/media",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.senderPhone }}\",\n  \"type\": \"image\",\n  \"file\": \"{{ $json.qrcode }}\",\n  \"text\": \"🔄 Reconectando!\\n\\nEscaneie o QR Code acima...\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "50b3e211-6d97-4260-932b-257aa5d2e87c",
+      "name": "Recon: Send QR Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -880,
+        -16
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pmmrTidWYOrHdZ6b",
+          "name": "Uazapi ibusiness"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ibusiness.uazapi.com/send/media",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.senderPhone }}\",\n  \"type\": \"image\",\n  \"file\": \"{{ $json.qrcode }}\",\n  \"text\": \"🔄 Reconectando!\\n\\nEscaneie o QR Code acima...\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "df19f190-dfad-40e1-a2f8-76f961f9842f",
+      "name": "Conect: Send QR Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -880,
+        336
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pmmrTidWYOrHdZ6b",
+          "name": "Uazapi ibusiness"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Cron 5min": [
+      {
+        "json": {
+          "timestamp": "2026-03-25T18:35:42.007-03:00",
+          "Readable date": "March 25th 2026, 6:35:42 pm",
+          "Readable time": "6:35:42 pm",
+          "Day of week": "Wednesday",
+          "Year": "2026",
+          "Month": "March",
+          "Day of month": "25",
+          "Hour": "18",
+          "Minute": "35",
+          "Second": "42",
+          "Timezone": "America/Sao_Paulo (UTC-03:00)"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Trigger": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.agenciaart.com.br",
+            "user-agent": "uazapiGO-Webhook/1.0",
+            "content-length": "2559",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1",
+            "cf-connecting-ip": "2804:9c4:10:3f::2",
+            "cf-ipcountry": "BR",
+            "cf-ray": "9e212980aeaea48d-GRU",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-warp-tag-id": "281029fc-15e8-4840-b6ea-6790c0e65dc3",
+            "connection": "keep-alive",
+            "content-type": "application/json",
+            "x-forwarded-for": "2804:9c4:10:3f::2",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "BaseUrl": "https://ibusiness.uazapi.com",
+            "EventType": "messages",
+            "chat": {
+              "chatbot_agentResetMemoryAt": 0,
+              "chatbot_disableUntil": 0,
+              "chatbot_lastTriggerAt": 0,
+              "chatbot_lastTrigger_id": "",
+              "id": "r164e05a2818978",
+              "image": "",
+              "imagePreview": "https://pps.whatsapp.net/v/t61.24694-24/534427359_1499125621928425_281278235647295310_n.jpg?stp=dst-jpg_s96x96_tt6&ccb=11-4&oh=01_Q5Aa4AEESdnNepMgdt3KcFjPgxW0S--2VxheLm_dIOXeA0yqIA&oe=69CFF40F&_nc_sid=5e03e0&_nc_cat=100",
+              "lead_assignedAttendant_id": "",
+              "lead_email": "",
+              "lead_field01": "",
+              "lead_field02": "",
+              "lead_field03": "",
+              "lead_field04": "",
+              "lead_field05": "",
+              "lead_field06": "",
+              "lead_field07": "",
+              "lead_field08": "",
+              "lead_field09": "",
+              "lead_field10": "",
+              "lead_field11": "",
+              "lead_field12": "",
+              "lead_field13": "",
+              "lead_field14": "",
+              "lead_field15": "",
+              "lead_field16": "",
+              "lead_field17": "",
+              "lead_field18": "",
+              "lead_field19": "",
+              "lead_field20": "",
+              "lead_fullName": "",
+              "lead_isTicketOpen": false,
+              "lead_kanbanOrder": 0,
+              "lead_name": "",
+              "lead_notes": "",
+              "lead_personalid": "",
+              "lead_status": "",
+              "lead_tags": [],
+              "name": "ibusiness Inteligência em Vendas",
+              "owner": "5511976944188",
+              "phone": "+55 19 98963-2092",
+              "wa_archived": false,
+              "wa_chatid": "5519989632092@s.whatsapp.net",
+              "wa_chatlid": "256328714981564@lid",
+              "wa_contactName": "",
+              "wa_ephemeralExpiration": 0,
+              "wa_fastid": "5511976944188:5519989632092",
+              "wa_isBlocked": false,
+              "wa_isGroup": false,
+              "wa_isGroup_admin": false,
+              "wa_isGroup_announce": false,
+              "wa_isGroup_community": false,
+              "wa_isGroup_member": false,
+              "wa_isPinned": false,
+              "wa_label": [],
+              "wa_lastMessageSender": "256328714981564@lid",
+              "wa_lastMessageTextVote": "/reconectar",
+              "wa_lastMessageType": "Conversation",
+              "wa_lastMsgTimestamp": 1774475750000,
+              "wa_muteEndTime": 0,
+              "wa_name": "ibusiness Inteligência em Vendas",
+              "wa_unreadCount": 2
+            },
+            "chatSource": "updated",
+            "instanceName": "ibusiness",
+            "message": {
+              "buttonOrListid": "",
+              "chatid": "5519989632092@s.whatsapp.net",
+              "chatlid": "256328714981564@lid",
+              "content": "/reconectar",
+              "convertOptions": "",
+              "edited": "",
+              "fromMe": false,
+              "groupName": "",
+              "id": "5511976944188:3EB07D70096FD9447A09C3",
+              "isGroup": false,
+              "mediaType": "",
+              "messageTimestamp": 1774475750000,
+              "messageType": "Conversation",
+              "messageid": "3EB07D70096FD9447A09C3",
+              "owner": "5511976944188",
+              "quoted": "",
+              "reaction": "",
+              "sender": "256328714981564@lid",
+              "senderName": "ibusiness Inteligência em Vendas",
+              "sender_lid": "256328714981564@lid",
+              "sender_pn": "5519989632092@s.whatsapp.net",
+              "source": "web",
+              "status": "",
+              "text": "/reconectar",
+              "track_id": "",
+              "track_source": "",
+              "type": "text",
+              "vote": "",
+              "wasSentByApi": false
+            },
+            "owner": "5511976944188",
+            "token": "0c9ad186-b632-4aec-9504-956afefd7c4f"
+          },
+          "webhookUrl": "https://webhook.agenciaart.com.br/webhook/agente-lia",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normaliza",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Command": {
+      "main": [
+        [
+          {
+            "node": "Criar: Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Recon: Lookup DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Conect: Lookup DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Excluir: Lookup DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status: Lookup DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Msg Help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Prepare": {
+      "main": [
+        [
+          {
+            "node": "Criar: Check Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Check Exists": {
+      "main": [
+        [
+          {
+            "node": "Criar: Already Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Already Exists?": {
+      "main": [
+        [
+          {
+            "node": "Criar: Init Instance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Criar: Msg Already Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Init Instance": {
+      "main": [
+        [
+          {
+            "node": "Criar: Extract Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Extract Token": {
+      "main": [
+        [
+          {
+            "node": "Criar: Save DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Save DB": {
+      "main": [
+        [
+          {
+            "node": "Criar: Connect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Connect": {
+      "main": [
+        [
+          {
+            "node": "Criar: Wait QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Wait QR": {
+      "main": [
+        [
+          {
+            "node": "Criar: Get Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Get Status": {
+      "main": [
+        [
+          {
+            "node": "Criar: Process QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Process QR": {
+      "main": [
+        [
+          {
+            "node": "Criar: Has QR?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar: Has QR?": {
+      "main": [
+        [
+          {
+            "node": "Criar: Send QR Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Criar: Send QR Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recon: Lookup DB": {
+      "main": [
+        [
+          {
+            "node": "Recon: Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recon: Found?": {
+      "main": [
+        [
+          {
+            "node": "Recon: Connect",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Recon: Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recon: Connect": {
+      "main": [
+        [
+          {
+            "node": "Recon: Wait QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recon: Wait QR": {
+      "main": [
+        [
+          {
+            "node": "Recon: Get Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recon: Get Status": {
+      "main": [
+        [
+          {
+            "node": "Recon: Process QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recon: Process QR": {
+      "main": [
+        [
+          {
+            "node": "Recon: Has QR?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recon: Has QR?": {
+      "main": [
+        [
+          {
+            "node": "Recon: Send QR Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Recon: Send QR Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conect: Lookup DB": {
+      "main": [
+        [
+          {
+            "node": "Conect: Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conect: Found?": {
+      "main": [
+        [
+          {
+            "node": "Conect: Connect",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Conect: Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conect: Connect": {
+      "main": [
+        [
+          {
+            "node": "Conect: Wait QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conect: Wait QR": {
+      "main": [
+        [
+          {
+            "node": "Conect: Get Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conect: Get Status": {
+      "main": [
+        [
+          {
+            "node": "Conect: Process QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conect: Process QR": {
+      "main": [
+        [
+          {
+            "node": "Conect: Has QR?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conect: Has QR?": {
+      "main": [
+        [
+          {
+            "node": "Conect: Send QR Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Conect: Send QR Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Excluir: Lookup DB": {
+      "main": [
+        [
+          {
+            "node": "Excluir: Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Excluir: Found?": {
+      "main": [
+        [
+          {
+            "node": "Excluir: Delete API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Excluir: Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Excluir: Delete API": {
+      "main": [
+        [
+          {
+            "node": "Excluir: Delete DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Excluir: Delete DB": {
+      "main": [
+        [
+          {
+            "node": "Excluir: Msg OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status: Lookup DB": {
+      "main": [
+        [
+          {
+            "node": "Status: Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status: Found?": {
+      "main": [
+        [
+          {
+            "node": "Status: Get API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status: Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status: Get API": {
+      "main": [
+        [
+          {
+            "node": "Status: Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status: Format": {
+      "main": [
+        [
+          {
+            "node": "Status: Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron 5min": {
+      "main": [
+        [
+          {
+            "node": "Get All Instances",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get DB Connected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Instances": {
+      "main": [
+        [
+          {
+            "node": "Merge Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get DB Connected": {
+      "main": [
+        [
+          {
+            "node": "Merge Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Data": {
+      "main": [
+        [
+          {
+            "node": "Compare Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Status": {
+      "main": [
+        [
+          {
+            "node": "Has Disconnected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Disconnected?": {
+      "main": [
+        [
+          {
+            "node": "Update DB Disconnected",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Connected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update DB Disconnected": {
+      "main": [
+        [
+          {
+            "node": "Build Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Notification": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Admin": {
+      "main": [
+        [
+          {
+            "node": "Find Connected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Connected": {
+      "main": [
+        [
+          {
+            "node": "Sync Connected DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normaliza": {
+      "main": [
+        [
+          {
+            "node": "Route Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "c5e45cb2-f6b8-4226-b783-c27337e05a56",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b4662a38c7b55b9640a6712cee81e3f0ee65d6014f679d8418e5fae3c21edee1"
+  },
+  "id": "51JV9UauPVv0AgACALbzt",
+  "tags": []
+}

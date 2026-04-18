@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Tenant {
+  id               String     @id @default(uuid()) @db.Uuid
+  nomeEmpresa      String     @map("nome_empresa") @db.VarChar(255)
+  email            String     @unique @db.VarChar(255)
+  senhaHash        String     @map("senha_hash") @db.VarChar(255)
+  telefone         String?    @db.VarChar(20)
+  produtosServicos String?    @map("produtos_servicos")
+  icp              String?
+  diferenciais     String?
+  tomAbordagem     String     @default("consultivo") @map("tom_abordagem") @db.VarChar(20)
+  propostaValor    String?    @map("proposta_valor")
+  mensagemPadrao   String?    @map("mensagem_padrao")
+  apresentacao     String?
+  cumprimento1     String?    @map("cumprimento_1")
+  cumprimento2     String?    @map("cumprimento_2")
+  cumprimento3     String?    @map("cumprimento_3")
+  openaiApiKey     String?    @map("openai_api_key") @db.VarChar(255)
+  serpapiKey       String?    @map("serpapi_key") @db.VarChar(255)
+  isActive         Boolean    @default(true) @map("is_active")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  instances        Instance[]
+  leads            Lead[]
+  pipelines        Pipeline[]
+
+  @@map("prospector_tenants")
+}
+
+model Pipeline {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome      String   @db.VarChar(100)
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  stages    Stage[]
+
+  @@index([tenantId])
+  @@map("prospector_pipelines")
+}
+
+model Stage {
+  id         String   @id @default(uuid()) @db.Uuid
+  pipelineId String   @map("pipeline_id") @db.Uuid
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  nome       String   @db.VarChar(100)
+  ordem      Int
+  tipo       String   @default("custom") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at")
+  leads      Lead[]
+
+  @@index([pipelineId, ordem])
+  @@map("prospector_stages")
+}
+
+model Instance {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  label           String?   @db.VarChar(100)
+  uazapiUrl       String?   @map("uazapi_url") @db.VarChar(255)
+  instanceToken   String?   @map("instance_token") @db.VarChar(255)
+  instanceName    String?   @map("instance_name") @db.VarChar(255)
+  uazapiSessionId String?   @map("uazapi_session_id") @db.VarChar(255)
+  status          String    @default("disconnected") @db.VarChar(20)
+  lastQrAt        DateTime? @map("last_qr_at")
+  disconnectedAt  DateTime? @map("disconnected_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("prospector_instances")
+}
+
+model Lead {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresa        String?  @db.VarChar(255)
+  firstName      String?  @map("first_name") @db.VarChar(100)
+  telefone       String?  @db.VarChar(20)
+  rating         Decimal? @db.Decimal(3, 1)
+  reviews        Int?
+  especialidades String?
+  site           String?  @db.VarChar(500)
+  hasWhatsapp    String?  @map("has_whatsapp") @db.VarChar(20)
+  contexto       String?
+  siteScrape     String?  @map("site_scrape")
+  origem         String   @default("manual") @db.VarChar(20)
+  disparo        String   @default("nao") @db.VarChar(10)
+  ultimaMensagem String?  @map("ultima_mensagem")
+  stageId        String?  @map("stage_id") @db.Uuid
+  stage          Stage?   @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  respondeu      Boolean  @default(false)
+  respondeuEm    DateTime? @map("respondeu_em")
+  ultimaResposta String?  @map("ultima_resposta")
+  classificacao  String?  @db.VarChar(20)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, telefone])
+  @@index([tenantId])
+  @@index([tenantId, disparo])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([stageId])
+  @@map("prospector_leads")
+}
