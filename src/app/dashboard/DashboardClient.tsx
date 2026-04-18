@@ -1000,27 +1000,29 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
 
             {qr && (
               <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-6"
+                className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm"
                 onClick={() => setQr(null)}
               >
-                <div className="flex flex-col items-center gap-5 rise" onClick={(e) => e.stopPropagation()}>
-                  <p className="text-base font-semibold">Escaneie com o WhatsApp</p>
-                  <div className="relative">
-                    <div className="absolute -inset-2 rounded-xl bg-[var(--accent)]/15 blur-xl" />
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={qr.qrcode}
-                      alt="QR Code"
-                      className="relative w-[280px] h-[280px] rounded-lg [image-rendering:pixelated] border border-[var(--line-strong)]"
-                    />
+                <div className="min-h-full grid place-items-center p-6">
+                  <div className="flex flex-col items-center gap-5 rise" onClick={(e) => e.stopPropagation()}>
+                    <p className="text-base font-semibold">Escaneie com o WhatsApp</p>
+                    <div className="relative">
+                      <div className="absolute -inset-2 rounded-xl bg-[var(--accent)]/15 blur-xl" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={qr.qrcode}
+                        alt="QR Code"
+                        className="relative w-[min(280px,60vmin)] aspect-square rounded-lg [image-rendering:pixelated] border border-[var(--line-strong)]"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] font-mono">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--success)] pulse-dot" />
+                      aguardando conexão…
+                    </div>
+                    <button onClick={() => setQr(null)} className="text-xs text-[var(--text-faint)] hover:text-[var(--text-dim)]">
+                      fechar
+                    </button>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] font-mono">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--success)] pulse-dot" />
-                    aguardando conexão…
-                  </div>
-                  <button onClick={() => setQr(null)} className="text-xs text-[var(--text-faint)] hover:text-[var(--text-dim)]">
-                    fechar
-                  </button>
                 </div>
               </div>
             )}
