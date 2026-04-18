@@ -16,6 +16,19 @@ type Pipeline = {
   stages: Stage[];
 };
 
+type SiteAnalysis = {
+  tipoNegocio: string;
+  segmento: string;
+  ofertas: string[];
+  doresAparentes: string[];
+  provaSocial: string[];
+  tomMarca: string;
+  ganchoEspecifico: string;
+  pessoasMencionadas: { nome: string; cargo?: string }[];
+  publicoAlvo: string;
+  confianca: number;
+};
+
 type Lead = {
   id: string;
   empresa: string | null;
@@ -30,6 +43,7 @@ type Lead = {
   classificacao: string | null;
   ultimaMensagem: string | null;
   ultimaResposta: string | null;
+  siteAnalysis: SiteAnalysis | null;
   createdAt: string;
 };
 

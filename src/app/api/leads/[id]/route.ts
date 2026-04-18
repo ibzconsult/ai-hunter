@@ -34,7 +34,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Params }) {
   if (body.site !== undefined) {
     const site = String(body.site).trim() || null;
     data.site = site;
-    if (site !== existing.site) data.siteScrape = null;
+    if (site !== existing.site) {
+      data.siteScrape = null;
+      data.siteAnalysis = null;
+    }
   }
   if (body.contexto !== undefined) data.contexto = String(body.contexto).trim() || null;
   if (body.especialidades !== undefined)

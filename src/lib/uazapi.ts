@@ -118,3 +118,26 @@ export async function sendText(token: string, phone: string, message: string) {
     body: JSON.stringify({ number: phone, text: message }),
   });
 }
+
+export type MediaKind = 'document' | 'image' | 'video' | 'audio';
+
+export async function sendMedia(
+  token: string,
+  phone: string,
+  fileUrl: string,
+  opts?: { caption?: string; type?: MediaKind; fileName?: string }
+) {
+  const type: MediaKind = opts?.type ?? 'document';
+  const payload: Json = {
+    number: phone,
+    type,
+    file: fileUrl,
+  };
+  if (opts?.caption) payload.text = opts.caption;
+  if (opts?.fileName) payload.docName = opts.fileName;
+  return call('/send/media', {
+    method: 'POST',
+    headers: { token },
+    body: JSON.stringify(payload),
+  });
+}

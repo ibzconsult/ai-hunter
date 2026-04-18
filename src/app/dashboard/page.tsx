@@ -26,6 +26,9 @@ export default async function DashboardPage() {
         cumprimento3: true,
         openaiApiKey: true,
         serpapiKey: true,
+        notificationPhone: true,
+        agentEnabled: true,
+        agentPersona: true,
       },
     }),
     prisma.instance.findMany({

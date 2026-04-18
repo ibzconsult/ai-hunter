@@ -26,11 +26,16 @@ model Tenant {
   cumprimento3     String?    @map("cumprimento_3")
   openaiApiKey     String?    @map("openai_api_key") @db.VarChar(255)
   serpapiKey       String?    @map("serpapi_key") @db.VarChar(255)
+  notificationPhone String?   @map("notification_phone") @db.VarChar(20)
+  agentEnabled     Boolean    @default(false) @map("agent_enabled")
+  agentPersona     String?    @map("agent_persona")
   isActive         Boolean    @default(true) @map("is_active")
   createdAt        DateTime   @default(now()) @map("created_at")
   instances        Instance[]
   leads            Lead[]
   pipelines        Pipeline[]
+  messages         Message[]
+  knowledgeDocs    KnowledgeDoc[]
 
   @@map("prospector_tenants")
 }
@@ -95,6 +100,7 @@ model Lead {
   hasWhatsapp    String?  @map("has_whatsapp") @db.VarChar(20)
   contexto       String?
   siteScrape     String?  @map("site_scrape")
+  siteAnalysis   Json?    @map("site_analysis")
   origem         String   @default("manual") @db.VarChar(20)
   disparo        String   @default("nao") @db.VarChar(10)
   ultimaMensagem String?  @map("ultima_mensagem")
@@ -104,7 +110,9 @@ model Lead {
   respondeuEm    DateTime? @map("respondeu_em")
   ultimaResposta String?  @map("ultima_resposta")
   classificacao  String?  @db.VarChar(20)
+  interested     Boolean  @default(false)
   createdAt      DateTime @default(now()) @map("created_at")
+  messages       Message[]
 
   @@unique([tenantId, telefone])
   @@index([tenantId])
@@ -112,4 +120,38 @@ model Lead {
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([stageId])
   @@map("prospector_leads")
+}
+
+model Message {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId     String   @map("lead_id") @db.Uuid
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  direction  String   @db.VarChar(8)
+  body       String
+  mediaUrl   String?  @map("media_url")
+  mediaType  String?  @map("media_type") @db.VarChar(20)
+  toolCalled String?  @map("tool_called") @db.VarChar(40)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([leadId, createdAt])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("prospector_messages")
+}
+
+model KnowledgeDoc {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  titulo        String   @db.VarChar(200)
+  descricao     String?
+  conteudoTexto String?  @map("conteudo_texto")
+  fileUrl       String?  @map("file_url")
+  fileType      String?  @map("file_type") @db.VarChar(20)
+  sendable      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@map("prospector_knowledge_docs")
 }

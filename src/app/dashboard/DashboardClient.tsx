@@ -22,6 +22,9 @@ type Tenant = {
   cumprimento3: string | null;
   openaiApiKey: string | null;
   serpapiKey: string | null;
+  notificationPhone: string | null;
+  agentEnabled: boolean;
+  agentPersona: string | null;
 };
 
 type Instance = {
@@ -30,6 +33,19 @@ type Instance = {
   status: string;
   instanceToken: string | null;
   createdAt: string | Date;
+};
+
+type SiteAnalysis = {
+  tipoNegocio: string;
+  segmento: string;
+  ofertas: string[];
+  doresAparentes: string[];
+  provaSocial: string[];
+  tomMarca: string;
+  ganchoEspecifico: string;
+  pessoasMencionadas: { nome: string; cargo?: string }[];
+  publicoAlvo: string;
+  confianca: number;
 };
 
 type Lead = {
@@ -46,6 +62,7 @@ type Lead = {
   respondeu: boolean;
   classificacao: string | null;
   ultimaResposta: string | null;
+  siteAnalysis: SiteAnalysis | null;
   createdAt: string;
 };
 
@@ -129,6 +146,9 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
     cumprimento_3: tenant.cumprimento3 ?? '',
     openai_api_key: tenant.openaiApiKey ?? '',
     serpapi_key: tenant.serpapiKey ?? '',
+    notification_phone: tenant.notificationPhone ?? '',
+    agent_enabled: tenant.agentEnabled,
+    agent_persona: tenant.agentPersona ?? '',
   });
 
   async function logout() {
@@ -931,6 +951,46 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
                 </FieldStacked>
               </div>
 
+              <div className="pt-3 border-t border-[var(--line)] space-y-4">
+                <SectionLabel>Agente conversacional</SectionLabel>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Quando o lead responder, o agente continua a conversa, manda documentos da KB e notifica você quando perceber interesse claro.
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={profile.agent_enabled}
+                    onChange={(e) => setProfile((p) => ({ ...p, agent_enabled: e.target.checked }))}
+                  />
+                  <span>Ativar agente conversacional</span>
+                </label>
+                <FieldStacked label="WhatsApp para notificação" hint="seu número pessoal — recebe alerta quando lead se interessa">
+                  <input
+                    value={profile.notification_phone}
+                    onChange={(e) => setProfile((p) => ({ ...p, notification_phone: e.target.value }))}
+                    className="input-field num"
+                    placeholder="11 98888-7777"
+                  />
+                </FieldStacked>
+                <FieldStacked label="Persona do agente" hint="tom, limites, estilo. Default: usa o tom geral acima.">
+                  <textarea
+                    rows={3}
+                    value={profile.agent_persona}
+                    onChange={(e) => setProfile((p) => ({ ...p, agent_persona: e.target.value }))}
+                    className="input-field"
+                    placeholder="Você é o consultor da ibusiness, tom direto, sem prometer prazo, escala dúvida fora da KB."
+                  />
+                </FieldStacked>
+              </div>
+
+              <div className="pt-3 border-t border-[var(--line)]">
+                <SectionLabel>Knowledge base</SectionLabel>
+                <p className="text-[11px] text-[var(--text-muted)] mb-3">
+                  Documentos e materiais que o agente conhece. Marcados como enviáveis viram tool de envio via WhatsApp.
+                </p>
+                <KnowledgeManager />
+              </div>
+
               <div className="pt-3 border-t border-[var(--line)] flex justify-end">
                 <button onClick={saveProfile} disabled={busy} className="btn-primary px-5 py-2 text-sm">
                   {busy ? 'Salvando…' : 'Salvar agente'}
@@ -1067,6 +1127,8 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
                 }
               : { firstName: '', empresa: '', telefone: '', site: '', contexto: '' }
           }
+          analysis={modal.mode === 'edit' ? modal.lead.siteAnalysis ?? null : null}
+          leadId={modal.mode === 'edit' ? modal.lead.id : null}
           title={modal.mode === 'edit' ? 'Editar lead' : 'Novo lead'}
           cta={modal.mode === 'edit' ? 'Salvar' : 'Criar lead'}
           error={modalErr}
@@ -1302,6 +1364,8 @@ function IconKey() {
 
 function LeadModal({
   initial,
+  analysis,
+  leadId,
   title,
   cta,
   error,
@@ -1309,6 +1373,8 @@ function LeadModal({
   onSave,
 }: {
   initial: LeadFormValues;
+  analysis?: SiteAnalysis | null;
+  leadId?: string | null;
   title: string;
   cta: string;
   error: string | null;
@@ -1317,6 +1383,8 @@ function LeadModal({
 }) {
   const [form, setForm] = useState<LeadFormValues>(initial);
   const [saving, setSaving] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [tab, setTab] = useState<'edit' | 'conv'>('edit');
 
   const set = <K extends keyof LeadFormValues>(k: K, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -1340,6 +1408,29 @@ function LeadModal({
           </button>
         </div>
 
+        {leadId && (
+          <div className="flex gap-1 border-b border-[var(--line)] -mt-2">
+            <button
+              type="button"
+              className={`px-3 py-1.5 text-sm border-b-2 -mb-px ${tab === 'edit' ? 'border-[var(--accent)] text-[var(--text)]' : 'border-transparent text-[var(--muted)]'}`}
+              onClick={() => setTab('edit')}
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1.5 text-sm border-b-2 -mb-px ${tab === 'conv' ? 'border-[var(--accent)] text-[var(--text)]' : 'border-transparent text-[var(--muted)]'}`}
+              onClick={() => setTab('conv')}
+            >
+              Conversa
+            </button>
+          </div>
+        )}
+
+        {leadId && tab === 'conv' ? (
+          <LeadConversation leadId={leadId} />
+        ) : (
+        <>
         <FieldStacked label="Primeiro nome" hint="variável {firstName} na copy">
           <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} className="input-field" />
         </FieldStacked>
@@ -1355,6 +1446,77 @@ function LeadModal({
         <FieldStacked label="Contexto" hint="o que você sabe — dor, oportunidade, referência">
           <textarea rows={3} value={form.contexto} onChange={(e) => set('contexto', e.target.value)} className="input-field" />
         </FieldStacked>
+
+        {analysis && (
+          <div className="border border-[var(--line)] rounded-md">
+            <button
+              type="button"
+              onClick={() => setShowAnalysis((v) => !v)}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium hover:bg-[var(--bg-soft)]"
+            >
+              <span>Análise IA do site</span>
+              <span className="text-xs text-[var(--muted)]">
+                {showAnalysis ? 'ocultar' : 'mostrar'} · conf {Math.round((analysis.confianca ?? 0) * 100)}%
+              </span>
+            </button>
+            {showAnalysis && (
+              <div className="px-3 pb-3 pt-1 space-y-2 text-xs text-[var(--text)]">
+                {analysis.tipoNegocio && (
+                  <div><span className="text-[var(--muted)]">Tipo: </span>{analysis.tipoNegocio}</div>
+                )}
+                {analysis.segmento && (
+                  <div><span className="text-[var(--muted)]">Segmento: </span>{analysis.segmento}</div>
+                )}
+                {analysis.tomMarca && (
+                  <div><span className="text-[var(--muted)]">Tom da marca: </span>{analysis.tomMarca}</div>
+                )}
+                {analysis.publicoAlvo && (
+                  <div><span className="text-[var(--muted)]">Público: </span>{analysis.publicoAlvo}</div>
+                )}
+                {analysis.ganchoEspecifico && (
+                  <div className="pt-1 border-t border-[var(--line)]">
+                    <div className="text-[var(--muted)] mb-0.5">Gancho:</div>
+                    <div>{analysis.ganchoEspecifico}</div>
+                  </div>
+                )}
+                {analysis.ofertas?.length > 0 && (
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Ofertas:</div>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {analysis.ofertas.map((o, i) => <li key={i}>{o}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {analysis.doresAparentes?.length > 0 && (
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Dores aparentes:</div>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {analysis.doresAparentes.map((o, i) => <li key={i}>{o}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {analysis.provaSocial?.length > 0 && (
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Prova social:</div>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {analysis.provaSocial.map((o, i) => <li key={i}>{o}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {analysis.pessoasMencionadas?.length > 0 && (
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Pessoas:</div>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {analysis.pessoasMencionadas.map((p, i) => (
+                        <li key={i}>{p.nome}{p.cargo ? ` — ${p.cargo}` : ''}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {error && (
           <p className="text-sm text-[var(--danger)] border-l-2 border-[var(--danger)] pl-3">{error}</p>
@@ -1377,6 +1539,220 @@ function LeadModal({
             className="btn-primary px-4 py-2 text-sm"
           >
             {saving ? 'Salvando…' : cta}
+          </button>
+        </div>
+        </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type ConversationMessage = {
+  id: string;
+  direction: string;
+  body: string;
+  mediaUrl: string | null;
+  mediaType: string | null;
+  toolCalled: string | null;
+  createdAt: string;
+};
+
+function LeadConversation({ leadId }: { leadId: string }) {
+  const [msgs, setMsgs] = useState<ConversationMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    fetch(`/api/leads/${leadId}/messages`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive && d.success) setMsgs(d.messages);
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [leadId]);
+
+  if (loading) return <p className="text-sm text-[var(--muted)] py-4">Carregando…</p>;
+  if (msgs.length === 0) return <p className="text-sm text-[var(--muted)] py-4">Nenhuma mensagem ainda.</p>;
+
+  return (
+    <div className="space-y-2 max-h-[60vh] overflow-y-auto py-2 pr-1">
+      {msgs.map((m) => {
+        const out = m.direction === 'out';
+        return (
+          <div key={m.id} className={`flex ${out ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${out ? 'bg-[var(--accent-soft)] text-[var(--text)]' : 'bg-[var(--bg-soft)]'}`}>
+              {m.mediaUrl && (
+                <a href={m.mediaUrl} target="_blank" rel="noreferrer" className="block text-xs underline mb-1 break-all">
+                  📎 {m.mediaType ?? 'arquivo'}
+                </a>
+              )}
+              <div className="whitespace-pre-wrap">{m.body}</div>
+              <div className="text-[10px] text-[var(--muted)] mt-1 flex gap-2">
+                <span>{new Date(m.createdAt).toLocaleString('pt-BR')}</span>
+                {m.toolCalled && <span>· {m.toolCalled}</span>}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+type KnowledgeDocItem = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  conteudoTexto: string | null;
+  fileUrl: string | null;
+  fileType: string | null;
+  sendable: boolean;
+};
+
+function KnowledgeManager() {
+  const [docs, setDocs] = useState<KnowledgeDocItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ titulo: '', descricao: '', conteudoTexto: '', fileUrl: '', fileType: '', sendable: true });
+
+  useEffect(() => {
+    fetch('/api/knowledge')
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setDocs(d.docs); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function add() {
+    if (!draft.titulo.trim()) return;
+    setAdding(true);
+    try {
+      const res = await fetch('/api/knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setDocs((arr) => [...arr, d.doc]);
+        setDraft({ titulo: '', descricao: '', conteudoTexto: '', fileUrl: '', fileType: '', sendable: true });
+      } else {
+        alert(d.error ?? 'Erro');
+      }
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function patch(id: string, body: Partial<KnowledgeDocItem>) {
+    const res = await fetch(`/api/knowledge/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await res.json();
+    if (d.success) setDocs((arr) => arr.map((x) => (x.id === id ? d.doc : x)));
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Remover documento?')) return;
+    const res = await fetch(`/api/knowledge/${id}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (d.success) setDocs((arr) => arr.filter((x) => x.id !== id));
+  }
+
+  if (loading) return <p className="text-xs text-[var(--muted)]">Carregando…</p>;
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        {docs.length === 0 && (
+          <p className="text-xs text-[var(--muted)]">Nenhum documento ainda. Cadastre o primeiro abaixo.</p>
+        )}
+        {docs.map((d) => (
+          <div key={d.id} className="border border-[var(--line)] rounded-md p-3 space-y-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{d.titulo}</div>
+                {d.descricao && <div className="text-xs text-[var(--muted)]">{d.descricao}</div>}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="text-xs flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={d.sendable}
+                    onChange={(e) => patch(d.id, { sendable: e.target.checked })}
+                  />
+                  enviável
+                </label>
+                <button onClick={() => remove(d.id)} className="text-xs text-[var(--danger)]">remover</button>
+              </div>
+            </div>
+            {d.fileUrl && (
+              <a href={d.fileUrl} target="_blank" rel="noreferrer" className="text-xs underline break-all">
+                📎 {d.fileType ?? 'arquivo'}
+              </a>
+            )}
+            {d.conteudoTexto && (
+              <div className="text-xs text-[var(--text)] whitespace-pre-wrap line-clamp-3">{d.conteudoTexto}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="border border-dashed border-[var(--line)] rounded-md p-3 space-y-2">
+        <div className="text-xs font-medium text-[var(--muted)]">Novo documento</div>
+        <input
+          value={draft.titulo}
+          onChange={(e) => setDraft((d) => ({ ...d, titulo: e.target.value }))}
+          placeholder="Título (ex: Apresentação institucional)"
+          className="input-field text-sm"
+        />
+        <input
+          value={draft.descricao}
+          onChange={(e) => setDraft((d) => ({ ...d, descricao: e.target.value }))}
+          placeholder="Descrição curta"
+          className="input-field text-sm"
+        />
+        <textarea
+          rows={3}
+          value={draft.conteudoTexto}
+          onChange={(e) => setDraft((d) => ({ ...d, conteudoTexto: e.target.value }))}
+          placeholder="Conteúdo em texto que o agente pode citar (opcional)"
+          className="input-field text-sm"
+        />
+        <div className="flex gap-2">
+          <input
+            value={draft.fileUrl}
+            onChange={(e) => setDraft((d) => ({ ...d, fileUrl: e.target.value }))}
+            placeholder="URL pública do arquivo (PDF/imagem)"
+            className="input-field text-sm flex-1"
+          />
+          <select
+            value={draft.fileType}
+            onChange={(e) => setDraft((d) => ({ ...d, fileType: e.target.value }))}
+            className="input-field text-sm w-32"
+          >
+            <option value="">tipo</option>
+            <option value="document">document</option>
+            <option value="image">image</option>
+            <option value="video">video</option>
+            <option value="audio">audio</option>
+          </select>
+        </div>
+        <div className="flex items-center justify-between">
+          <label className="text-xs flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={draft.sendable}
+              onChange={(e) => setDraft((d) => ({ ...d, sendable: e.target.checked }))}
+            />
+            enviável via WhatsApp
+          </label>
+          <button onClick={add} disabled={adding || !draft.titulo.trim()} className="btn-primary px-3 py-1.5 text-xs">
+            {adding ? 'Salvando…' : 'Adicionar'}
           </button>
         </div>
       </div>

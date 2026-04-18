@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { sendText } from '@/lib/uazapi';
 import { generateMessages } from '@/lib/openai';
-import { scrapeSite } from '@/lib/scraper';
+import { scrapeSiteDeep, flattenScrape } from '@/lib/scraper';
+import { analyzeSite, type SiteAnalysis } from '@/lib/siteAnalysis';
 import { firstStageId, stageIdByType } from '@/lib/pipeline';
 
 type ProspectInput = {
@@ -90,10 +91,23 @@ export async function POST(req: NextRequest) {
 
   try {
     let siteScrape = lead.siteScrape ?? '';
-    if (lead.site && !siteScrape) {
-      siteScrape = await scrapeSite(lead.site);
-      if (siteScrape) {
-        await prisma.lead.update({ where: { id: lead.id }, data: { siteScrape } });
+    let siteAnalysis = (lead.siteAnalysis as SiteAnalysis | null) ?? null;
+
+    if (lead.site && !siteAnalysis) {
+      const scrape = await scrapeSiteDeep(lead.site);
+      if (scrape.pages.length) {
+        siteScrape = flattenScrape(scrape, 15000);
+        siteAnalysis = await analyzeSite(tenant.openaiApiKey, scrape, {
+          especialidades: lead.especialidades ?? undefined,
+          empresa: lead.empresa ?? undefined,
+        });
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: {
+            siteScrape,
+            ...(siteAnalysis ? { siteAnalysis: siteAnalysis as unknown as object } : {}),
+          },
+        });
       }
     }
 
@@ -121,12 +135,23 @@ export async function POST(req: NextRequest) {
         site: lead.site ?? undefined,
         contexto: lead.contexto ?? undefined,
         siteScrape,
+        siteAnalysis,
+        segmento: siteAnalysis?.segmento ?? lead.especialidades ?? null,
       }
     );
     if (messages.length === 0) throw new Error('OpenAI retornou vazio');
 
     for (let i = 0; i < messages.length; i++) {
       await sendText(instance.instanceToken, lead.telefone, messages[i]);
+      await prisma.message.create({
+        data: {
+          tenantId: s.tenantId,
+          leadId: lead.id,
+          direction: 'out',
+          body: messages[i],
+          toolCalled: 'dispatch',
+        },
+      });
       if (i < messages.length - 1) {
         const delayMs = 3000 + Math.random() * 2000; // 3-5s
         await new Promise((r) => setTimeout(r, delayMs));

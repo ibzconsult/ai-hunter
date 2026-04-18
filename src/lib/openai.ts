@@ -1,3 +1,6 @@
+import { pickFewShots, renderFewShots, classifySegment } from './fewShots';
+import type { SiteAnalysis } from './siteAnalysis';
+
 type ProfilePrompt = {
   nomeEmpresa: string;
   produtosServicos: string;
@@ -17,9 +20,11 @@ type Prospect = {
   site?: string;
   contexto?: string;
   siteScrape?: string;
+  siteAnalysis?: SiteAnalysis | null;
+  segmento?: string | null;
 };
 
-function buildSystemPrompt(p: ProfilePrompt) {
+function buildSystemPrompt(p: ProfilePrompt, segmento?: string | null) {
   const cumprimentosBlock =
     p.cumprimentos.length > 0
       ? `## CUMPRIMENTOS PERMITIDOS (escolha UM)
@@ -40,6 +45,9 @@ Use esta apresentação como base (adapte sem distorcer):
 "${p.apresentacao}"`
     : `## COMO SE APRESENTAR NA MSG 2
 Se fizer sentido, abra com "aqui é o {seu nome} da ${p.nomeEmpresa}". Curto, sem ladainha.`;
+
+  const shots = pickFewShots(segmento, 2);
+  const fewShotsBlock = renderFewShots(shots);
 
   return `Você é o melhor SDR da empresa ${p.nomeEmpresa}. Missão: abrir conversa com prospect frio no WhatsApp parecendo gente — não bot, não vendedor.
 
@@ -89,7 +97,7 @@ BLOCO 2 — APRESENTAÇÃO CURTA
 Quem você é, 1 frase. Use o bloco "apresentação" como base. Ex: "aqui é o joão da ibusiness"
 
 BLOCO 3 — ANCORAGEM + INSIGHT (pode ser 1 bloco só OU quebrar em 2 se for natural)
-Referência específica ao prospect (site/segmento/contexto) + observação concreta de dor/oportunidade.
+Referência ESPECÍFICA ao prospect (use ganchoEspecifico do bloco de análise se houver) + observação concreta de dor/oportunidade.
 Pode vir como 1 bloco combinado ou dividido em "vi que vocês fazem X" + "reparei que Y acontece muito no segmento".
 
 BLOCO 4 — O QUE VOCÊ FAZ (opcional, pode fundir com anterior)
@@ -121,46 +129,46 @@ Escolha o tipo que mais encaixa no tom da marca + contexto. Varie entre execuç�
 
 ## EXEMPLOS
 
-### Ex 1 — 5 blocos, com apresentação="aqui é o {SEU-NOME} da {SUA-EMPRESA}"
-firstName=Rafael, empresa=Santa Fé Odonto, segmento=odontológica, contexto=quer aumentar demanda de implantes
-
-["Rafael, tudo bem?",
- "Aqui é a Lia da ibusiness",
- "Vi que a Santa Fé é referência em implante aí em Fortaleza",
- "A maioria das clínicas boas perde caixa no intervalo entre avaliação e fechamento — paciente esfria em 3 dias",
- "Posso te mandar um caso parecido que a gente rodou?"]
-
-### Ex 2 — 4 blocos, sem firstName
-firstName=null, empresa=Auto Peças Cidade Verde, segmento=autopeças
-
-["Oi, tudo bem por aí?",
- "Aqui é o Marcos da AgenciaX",
- "Olhando distribuidoras de autopeças no Ceará, vocês apareceram. Balconista bom vende presencial, mas perde o WhatsApp no pico",
- "Como vocês tão lidando com o WhatsApp no horário de movimento hoje?"]
-
-### Ex 3 — 3 blocos, tom mais direto
-firstName=Lia, empresa=Studio Lia Pilates, segmento=pilates, contexto=sem site ativo
-
-["Lia, posso te roubar 30s?",
- "Vi que o Studio Lia não tem site ativo — em pilates, 70% da primeira busca do aluno é no Google",
- "A gente sobe site + landing de aula experimental em 5 dias. Posso te mandar uma prévia?"]
+${fewShotsBlock}
 
 ## AGORA GERE
 Gere a sequência pro prospect recebido (3 a 5 blocos). Responda APENAS JSON.`.trim();
 }
 
 function buildUserPrompt(prospect: Prospect, mensagemPadrao: string) {
-  const parts = [
+  const parts: (string | null)[] = [
     `- Empresa: ${prospect.nomeEmpresa}`,
     prospect.firstName ? `- firstName: ${prospect.firstName}` : `- firstName: (sem nome)`,
     prospect.especialidades ? `- Segmento: ${prospect.especialidades}` : null,
     prospect.site ? `- Site: ${prospect.site}` : null,
     prospect.contexto ? `- Contexto fornecido: ${prospect.contexto}` : null,
-    prospect.siteScrape ? `- Trecho do site:\n"""${prospect.siteScrape}"""` : null,
-  ].filter(Boolean);
+  ];
+
+  const a = prospect.siteAnalysis;
+  if (a) {
+    const pessoas =
+      a.pessoasMencionadas?.length
+        ? a.pessoasMencionadas.map((p) => (p.cargo ? `${p.nome} (${p.cargo})` : p.nome)).join(', ')
+        : '';
+    const analysisLines = [
+      '- Análise do site:',
+      `  • Tipo: ${a.tipoNegocio || '(?)'}`,
+      a.ofertas.length ? `  • Ofertas: ${a.ofertas.join(', ')}` : null,
+      a.doresAparentes.length ? `  • Dores aparentes: ${a.doresAparentes.join('; ')}` : null,
+      a.provaSocial.length ? `  • Prova social: ${a.provaSocial.join('; ')}` : null,
+      `  • Tom da marca: ${a.tomMarca}`,
+      a.ganchoEspecifico ? `  • Gancho específico: ${a.ganchoEspecifico}` : null,
+      a.publicoAlvo ? `  • Público: ${a.publicoAlvo}` : null,
+      pessoas ? `  • Pessoas: ${pessoas}` : null,
+      `  • Confiança da análise: ${a.confianca.toFixed(2)}`,
+    ].filter(Boolean) as string[];
+    parts.push(analysisLines.join('\n'));
+  } else if (prospect.siteScrape) {
+    parts.push(`- Trecho do site:\n"""${prospect.siteScrape}"""`);
+  }
 
   return `Prospect:
-${parts.join('\n')}
+${parts.filter(Boolean).join('\n')}
 
 Inspiração de tom (opcional): ${mensagemPadrao || '(livre)'}`.trim();
 }
@@ -227,11 +235,14 @@ export async function generateMessages(
 ): Promise<string[]> {
   if (!apiKey) throw new Error('OpenAI API key ausente');
 
+  const segmento =
+    prospect.segmento ?? prospect.siteAnalysis?.segmento ?? classifySegment(prospect.especialidades);
+
   const body = {
-    model: 'gpt-4.1-mini',
+    model: 'gpt-4.1',
     response_format: { type: 'json_object' as const },
     messages: [
-      { role: 'system' as const, content: buildSystemPrompt(profile) },
+      { role: 'system' as const, content: buildSystemPrompt(profile, segmento) },
       { role: 'user' as const, content: buildUserPrompt(prospect, profile.mensagemPadrao) },
     ],
     temperature: 0.85,

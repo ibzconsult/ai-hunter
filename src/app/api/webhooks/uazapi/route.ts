@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { classifyReply } from '@/lib/openai';
 import { stageIdByType } from '@/lib/pipeline';
 import { normalizePhone } from '@/lib/phone';
+import { runAgentTurn } from '@/lib/agent';
 
 function extractPayload(body: Record<string, unknown>) {
   const nested = (body.data ?? body.message ?? body) as Record<string, unknown>;
@@ -34,18 +35,19 @@ function extractPayload(body: Record<string, unknown>) {
     (nested.chatId as string) ??
     ((nested.key as Record<string, unknown> | undefined)?.remoteJid as string) ??
     '';
+  const isGroup = /@g\.us/i.test(rawPhone) || rawPhone.endsWith('@broadcast');
   const phone = normalizePhone(rawPhone.split('@')[0] ?? '');
 
-  return { token, fromMe, text: String(text || '').trim(), phone };
+  return { token, fromMe, text: String(text || '').trim(), phone, isGroup };
 }
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ ok: false }, { status: 400 });
 
-  const { token, fromMe, text, phone } = extractPayload(body);
+  const { token, fromMe, text, phone, isGroup } = extractPayload(body);
 
-  if (fromMe || !text || !phone || !token) {
+  if (fromMe || !text || !phone || !token || isGroup) {
     return NextResponse.json({ ok: true, skipped: 'irrelevant' });
   }
 
@@ -90,9 +92,31 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await prisma.lead.update({ where: { id: lead.id }, data: updates });
+  await Promise.all([
+    prisma.lead.update({ where: { id: lead.id }, data: updates }),
+    prisma.message.create({
+      data: {
+        tenantId: instance.tenantId,
+        leadId: lead.id,
+        direction: 'in',
+        body: text.slice(0, 4000),
+      },
+    }),
+  ]);
 
-  return NextResponse.json({ ok: true, classificacao, confianca });
+  let agentResult: { replies: string[]; toolsUsed: string[] } | null = null;
+  if (instance.tenant.agentEnabled && classificacao === 'human') {
+    try {
+      const freshLead = await prisma.lead.findUnique({ where: { id: lead.id } });
+      if (freshLead) {
+        agentResult = await runAgentTurn(instance.tenant, freshLead, instance, text);
+      }
+    } catch (e) {
+      console.error('[agent error]', e instanceof Error ? e.message : e);
+    }
+  }
+
+  return NextResponse.json({ ok: true, classificacao, confianca, agent: agentResult });
 }
 
 export async function GET() {

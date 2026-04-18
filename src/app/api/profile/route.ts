@@ -21,6 +21,9 @@ export async function PUT(req: NextRequest) {
     cumprimento1: body.cumprimento_1?.toString() ?? undefined,
     cumprimento2: body.cumprimento_2?.toString() ?? undefined,
     cumprimento3: body.cumprimento_3?.toString() ?? undefined,
+    notificationPhone: body.notification_phone?.toString().trim() ?? undefined,
+    agentEnabled: typeof body.agent_enabled === 'boolean' ? body.agent_enabled : undefined,
+    agentPersona: body.agent_persona?.toString() ?? undefined,
   };
 
   const tenant = await prisma.tenant.update({
