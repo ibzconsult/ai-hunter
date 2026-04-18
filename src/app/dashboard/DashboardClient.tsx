@@ -998,20 +998,6 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
               </ul>
             )}
 
-            {qr && (
-              <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
-                onClick={() => setQr(null)}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qr.qrcode}
-                  alt="QR Code"
-                  className="w-[320px] h-[320px] rounded-lg [image-rendering:pixelated]"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-            )}
           </PageShell>
         )}
 
@@ -1048,6 +1034,21 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
           </PageShell>
         )}
       </main>
+
+      {qr && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+          onClick={() => setQr(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={qr.qrcode}
+            alt="QR Code"
+            className="w-[320px] h-[320px] rounded-lg [image-rendering:pixelated]"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {modal.mode !== 'closed' && (
         <LeadModal
