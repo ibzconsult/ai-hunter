@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import PipelineView from './PipelineView';
 import { formatPhone } from '@/lib/phone';
@@ -1035,20 +1036,22 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
         )}
       </main>
 
-      {qr && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
-          onClick={() => setQr(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={qr.qrcode}
-            alt="QR Code"
-            className="w-[320px] h-[320px] rounded-lg [image-rendering:pixelated]"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      {qr && typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setQr(null)}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qr.qrcode}
+              alt="QR Code"
+              className="w-[340px] h-[340px] [image-rendering:pixelated]"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>,
+          document.body,
+        )}
 
       {modal.mode !== 'closed' && (
         <LeadModal
