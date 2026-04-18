@@ -15,7 +15,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prospector.Ia",
+  title: "AI Hunter",
   description: "Prospecção B2B com IA via WhatsApp",
 };
 

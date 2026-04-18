@@ -453,15 +453,9 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
         <div className="px-4 py-5 border-b border-[var(--line)]">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent)]/10 border border-[var(--accent-ring)]">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.2" opacity="0.55" />
-                <path d="M8 1.5v1.75M8 12.75v1.75M1.5 8h1.75M12.75 8h1.75" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                <circle cx="8" cy="8" r="1.75" fill="var(--accent)" />
-              </svg>
+              <span className="text-[11px] font-bold tracking-tight text-[var(--accent)]">AH</span>
             </div>
-            <div className="text-[15px] font-semibold tracking-tight">
-              Prospector<span className="text-[var(--accent)]">.</span>Ia
-            </div>
+            <div className="text-[15px] font-semibold tracking-tight">AI Hunter</div>
           </div>
         </div>
 

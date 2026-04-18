@@ -36,15 +36,9 @@ export default function LoginPage() {
       <aside className="hidden md:flex flex-col justify-between p-12 border-r border-[var(--line)]">
         <div className="flex items-center gap-3 rise">
           <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--accent-ring)] bg-[var(--accent)]/10">
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.2" opacity="0.55" />
-              <path d="M8 1.5v1.75M8 12.75v1.75M1.5 8h1.75M12.75 8h1.75" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-              <circle cx="8" cy="8" r="1.75" fill="var(--accent)" />
-            </svg>
+            <span className="text-[13px] font-bold tracking-tight text-[var(--accent)]">AH</span>
           </div>
-          <div className="text-xl font-semibold">
-            Prospector<span className="text-[var(--accent)]">.</span>Ia
-          </div>
+          <div className="text-xl font-semibold tracking-tight">AI Hunter</div>
         </div>
 
         <div className="space-y-6 rise rise-d2">
