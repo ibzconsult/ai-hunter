@@ -300,7 +300,7 @@ export async function resolveEligibleLeadIds(limit = 50): Promise<string[]> {
       followupManuallyPaused: false,
       nextFollowupAt: { not: null, lte: now },
       OR: [{ followupPausedUntil: null }, { followupPausedUntil: { lte: now } }],
-      tenant: { followupConfig: { enabled: true } },
+      tenant: { is: { followupConfig: { is: { enabled: true } } } },
     },
     select: { id: true, tenantId: true, tenant: { select: { followupConfig: true } } },
     orderBy: { nextFollowupAt: 'asc' },
