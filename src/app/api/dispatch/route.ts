@@ -54,58 +54,67 @@ export async function POST(req: NextRequest) {
   }
 
   let lead;
-  if (body.lead_id) {
-    lead = await prisma.lead.findFirst({
-      where: { id: body.lead_id, tenantId: s.tenantId },
-    });
-    if (!lead) return NextResponse.json({ success: false, error: 'Lead não encontrado' }, { status: 404 });
-  } else {
-    const p = body.prospect;
-    if (!p?.nome_empresa || !p.telefone) {
-      return NextResponse.json({ success: false, error: 'Payload incompleto' }, { status: 400 });
-    }
-    const initStage = await firstStageId(s.tenantId);
+  try {
+    if (body.lead_id) {
+      lead = await prisma.lead.findFirst({
+        where: { id: body.lead_id, tenantId: s.tenantId },
+      });
+      if (!lead) return NextResponse.json({ success: false, error: 'Lead não encontrado' }, { status: 404 });
+    } else {
+      const p = body.prospect;
+      if (!p?.nome_empresa || !p.telefone) {
+        return NextResponse.json({ success: false, error: 'Payload incompleto' }, { status: 400 });
+      }
+      const initStage = await firstStageId(s.tenantId);
 
-    const company = await upsertCompanyByName(s.tenantId, p.nome_empresa, {
-      site: p.site_empresa ?? null,
-      segmento: p.especialidades ?? null,
-    });
-    const contact = await upsertContactByPhone(s.tenantId, p.telefone, {
-      firstName: p.first_name ?? null,
-      companyId: company.id,
-    });
-
-    lead = await prisma.lead.upsert({
-      where: { tenantId_telefone: { tenantId: s.tenantId, telefone: p.telefone } },
-      create: {
-        tenantId: s.tenantId,
-        empresa: p.nome_empresa,
-        firstName: p.first_name ?? null,
-        telefone: p.telefone,
-        rating: p.rating_google ?? null,
-        reviews: p.reviews_google ?? null,
-        especialidades: p.especialidades ?? null,
+      const company = await upsertCompanyByName(s.tenantId, p.nome_empresa, {
         site: p.site_empresa ?? null,
-        hasWhatsapp: p.has_whatsapp ?? null,
-        contexto: p.contexto ?? null,
-        contactId: contact.id,
+        segmento: p.especialidades ?? null,
+      });
+      const contact = await upsertContactByPhone(s.tenantId, p.telefone, {
+        firstName: p.first_name ?? null,
         companyId: company.id,
-        origem: 'prospect',
-        stageId: initStage,
-      },
-      update: {
-        empresa: p.nome_empresa,
-        firstName: p.first_name ?? undefined,
-        especialidades: p.especialidades ?? undefined,
-        site: p.site_empresa ?? undefined,
-        contexto: p.contexto ?? undefined,
-        contactId: contact.id,
-        companyId: company.id,
-      },
-    });
+      });
+
+      lead = await prisma.lead.upsert({
+        where: { tenantId_telefone: { tenantId: s.tenantId, telefone: p.telefone } },
+        create: {
+          tenantId: s.tenantId,
+          empresa: p.nome_empresa,
+          firstName: p.first_name ?? null,
+          telefone: p.telefone,
+          rating: p.rating_google ?? null,
+          reviews: p.reviews_google ?? null,
+          especialidades: p.especialidades ?? null,
+          site: p.site_empresa ?? null,
+          hasWhatsapp: p.has_whatsapp ?? null,
+          contexto: p.contexto ?? null,
+          contactId: contact.id,
+          companyId: company.id,
+          origem: 'prospect',
+          stageId: initStage,
+        },
+        update: {
+          empresa: p.nome_empresa,
+          firstName: p.first_name ?? undefined,
+          especialidades: p.especialidades ?? undefined,
+          site: p.site_empresa ?? undefined,
+          contexto: p.contexto ?? undefined,
+          contactId: contact.id,
+          companyId: company.id,
+        },
+      });
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Erro criando/atualizando lead';
+    console.error('[dispatch:lead-upsert]', msg, e);
+    return NextResponse.json(
+      { success: false, error: `Falha ao preparar lead: ${msg}` },
+      { status: 500 }
+    );
   }
 
-  if (!lead.telefone) {
+  if (!lead || !lead.telefone) {
     return NextResponse.json({ success: false, error: 'Lead sem telefone' }, { status: 400 });
   }
 
