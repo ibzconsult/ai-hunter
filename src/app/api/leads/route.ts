@@ -98,11 +98,13 @@ export async function GET(req: NextRequest) {
       tags: { include: { tag: true } },
       contact: true,
       company: true,
+      _count: { select: { messages: { where: { direction: 'out' } } } },
     },
   });
   const leads = rows.map((l) => ({
     ...l,
     tags: l.tags.map((lt) => ({ id: lt.tag.id, nome: lt.tag.nome, color: lt.tag.color })),
+    messagesOutCount: l._count.messages,
   }));
   return NextResponse.json({ success: true, leads });
 }

@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
   const email = body.email ? String(body.email).trim() : null;
   const role = body.role ? String(body.role).trim() : null;
   const companyId = body.companyId ? String(body.companyId) : null;
+  const isPrimary = body.isPrimary === true;
   const phoneRaw = body.phone ? String(body.phone).trim() : '';
   const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
 
@@ -51,19 +52,34 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (phone) {
-      const contact = await upsertContactByPhone(s.tenantId, phone, {
-        firstName,
-        lastName,
-        email,
-        role,
-        companyId,
+    const run = async () => {
+      if (phone) {
+        return upsertContactByPhone(s.tenantId, phone, {
+          firstName,
+          lastName,
+          email,
+          role,
+          companyId,
+        });
+      }
+      return prisma.contact.create({
+        data: { tenantId: s.tenantId, firstName, lastName, email, role, companyId },
+      });
+    };
+
+    if (isPrimary && companyId) {
+      const contact = await prisma.$transaction(async (tx) => {
+        await tx.contact.updateMany({
+          where: { tenantId: s.tenantId, companyId, isPrimary: true },
+          data: { isPrimary: false },
+        });
+        const created = await run();
+        return tx.contact.update({ where: { id: created.id }, data: { isPrimary: true } });
       });
       return NextResponse.json({ ok: true, contact });
     }
-    const contact = await prisma.contact.create({
-      data: { tenantId: s.tenantId, firstName, lastName, email, role, companyId },
-    });
+
+    const contact = await run();
     return NextResponse.json({ ok: true, contact });
   } catch (e) {
     return NextResponse.json(

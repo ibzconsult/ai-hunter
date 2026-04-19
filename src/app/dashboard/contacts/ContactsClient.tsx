@@ -69,6 +69,7 @@ export default function ContactsClient() {
                 <th className="text-left px-3 py-2">Email</th>
                 <th className="text-left px-3 py-2">Empresa</th>
                 <th className="text-left px-3 py-2">Oport.</th>
+                <th className="text-right px-3 py-2 w-12">Editar</th>
               </tr>
             </thead>
             <tbody>
@@ -96,6 +97,18 @@ export default function ContactsClient() {
                       )}
                     </td>
                     <td className="px-3 py-2 text-xs">{c._count?.leads ?? 0}</td>
+                    <td className="px-3 py-2 text-right">
+                      <Link
+                        href={`/dashboard/contacts/${c.id}`}
+                        className="text-[var(--muted)] hover:text-[var(--accent)]"
+                        aria-label="Editar contato"
+                        title="Editar"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="inline-block">
+                          <path d="M11.5 2.5l2 2-7 7-2.5.5.5-2.5 7-7z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                        </svg>
+                      </Link>
+                    </td>
                   </tr>
                 );
               })}

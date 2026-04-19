@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PipelineView from './PipelineView';
 import { formatPhone } from '@/lib/phone';
 
@@ -78,6 +78,10 @@ type Lead = {
   interested?: boolean;
   lastInteractionAt?: string | null;
   tags?: LeadTag[];
+  contact?: { id: string; firstName: string | null; lastName: string | null; phone: string | null } | null;
+  company?: { id: string; nome: string } | null;
+  stage?: { id: string; nome: string } | null;
+  messagesOutCount?: number;
 };
 
 type ProspectRow = {
@@ -113,10 +117,23 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
   const [instances, setInstances] = useState(initialInstances);
   const [qr, setQr] = useState<{ id: string; qrcode: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<TabId>('prospect');
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as TabId) ?? 'prospect';
+  const validTabs: TabId[] = ['prospect', 'leads', 'pipeline', 'agente', 'whatsapp', 'integracoes'];
+  const [tab, setTab] = useState<TabId>(
+    validTabs.includes(initialTab) ? initialTab : 'prospect'
+  );
+
+  // Sincroniza com mudanças de URL vindo do sidebar compartilhado
+  useEffect(() => {
+    const t = searchParams.get('tab') as TabId | null;
+    if (t && validTabs.includes(t) && t !== tab) setTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [leadsLoaded, setLeadsLoaded] = useState(false);
+  const [oppView, setOppView] = useState<'list' | 'kanban'>('list');
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>({ mode: 'closed' });
   const [modalErr, setModalErr] = useState<string | null>(null);
@@ -483,97 +500,8 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
   const initial = (tenant.nomeEmpresa.charAt(0) || tenant.email.charAt(0) || '?').toUpperCase();
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-60 shrink-0 border-r border-[var(--line)] bg-[var(--bg-sidebar)] flex flex-col">
-        <div className="px-4 py-5 border-b border-[var(--line)]">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent)]/10 border border-[var(--accent-ring)]">
-              <span className="text-[11px] font-bold tracking-tight text-[var(--accent)]">AH</span>
-            </div>
-            <div className="text-[15px] font-semibold tracking-tight">AI Hunter</div>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-2 overflow-y-auto hide-scrollbar space-y-4">
-          <div>
-            <div className="nav-section-label">Operação</div>
-            <div className="space-y-0.5">
-              <NavItem
-                active={tab === 'prospect'}
-                onClick={() => setTab('prospect')}
-                label="Prospectar"
-                icon={<IconTarget />}
-              />
-              <NavItem
-                active={tab === 'leads'}
-                onClick={() => setTab('leads')}
-                label="Oportunidades"
-                icon={<IconList />}
-                badge={pendingCount > 0 ? String(pendingCount) : undefined}
-              />
-              <NavItem
-                active={tab === 'pipeline'}
-                onClick={() => setTab('pipeline')}
-                label="Pipeline"
-                icon={<IconBoard />}
-              />
-              <NavLink href="/dashboard/contacts" label="Contatos" icon={<IconList />} />
-              <NavLink href="/dashboard/companies" label="Empresas" icon={<IconList />} />
-              <NavLink href="/dashboard/followups" label="Follow-ups" icon={<IconList />} />
-            </div>
-          </div>
-
-          <div>
-            <div className="nav-section-label">Configurações</div>
-            <div className="space-y-0.5">
-              <NavItem
-                active={tab === 'agente'}
-                onClick={() => setTab('agente')}
-                label="Agente"
-                icon={<IconSparkle />}
-              />
-              <NavItem
-                active={tab === 'whatsapp'}
-                onClick={() => setTab('whatsapp')}
-                label="WhatsApp"
-                icon={<IconPhone />}
-                indicator={instances.some((i) => i.status === 'connected') ? 'on' : 'off'}
-              />
-              <NavItem
-                active={tab === 'integracoes'}
-                onClick={() => setTab('integracoes')}
-                label="Integrações"
-                icon={<IconKey />}
-              />
-            </div>
-          </div>
-        </nav>
-
-        <div className="border-t border-[var(--line)] p-3">
-          <div className="flex items-center gap-3 p-2 rounded-md">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-raised)] border border-[var(--line)] text-sm font-medium">
-              {initial}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium truncate">{tenant.nomeEmpresa}</div>
-              <div className="text-[11px] text-[var(--text-muted)] truncate">{tenant.email}</div>
-            </div>
-            <button onClick={logout} className="btn-icon w-7 h-7" title="Sair" aria-label="Sair">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M10 11v1.5a1.5 1.5 0 01-1.5 1.5H3.5A1.5 1.5 0 012 12.5v-9A1.5 1.5 0 013.5 2h5A1.5 1.5 0 0110 3.5V5M7 8h7m0 0l-2.5-2.5M14 8l-2.5 2.5"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      <main className="flex-1 min-w-0">
+    <>
+      <div className="min-w-0">
         {tab === 'prospect' && (
           <PageShell
             title="Prospectar"
@@ -794,104 +722,195 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
 
             {importMsg && <p className="text-xs text-[var(--text-dim)] font-mono mb-3">{importMsg}</p>}
 
+            <div className="flex items-center gap-1 mb-3">
+              <button
+                onClick={() => setOppView('list')}
+                className={`px-3 py-1.5 text-xs rounded-md border ${
+                  oppView === 'list'
+                    ? 'bg-[var(--accent-soft)] border-[var(--accent-border)] text-[var(--accent)]'
+                    : 'border-[var(--line)] text-[var(--text-muted)]'
+                }`}
+              >
+                Lista
+              </button>
+              <button
+                onClick={() => setOppView('kanban')}
+                className={`px-3 py-1.5 text-xs rounded-md border ${
+                  oppView === 'kanban'
+                    ? 'bg-[var(--accent-soft)] border-[var(--accent-border)] text-[var(--accent)]'
+                    : 'border-[var(--line)] text-[var(--text-muted)]'
+                }`}
+              >
+                Kanban
+              </button>
+            </div>
+
             {leads.length === 0 ? (
               <EmptyState
-                title="Nenhum lead ainda"
+                title="Nenhuma oportunidade ainda"
                 body="Importe um CSV, busque no Maps ou insira manualmente."
               />
+            ) : oppView === 'kanban' ? (
+              <PipelineView
+                leads={leads}
+                onLeadMoved={(leadId, stageId) =>
+                  setLeads((arr) => arr.map((l) => (l.id === leadId ? { ...l, stageId } : l)))
+                }
+                onLeadClick={(lead) => {
+                  setModalErr(null);
+                  setModal({ mode: 'edit', lead });
+                }}
+                onLeadsChanged={() => void loadLeads()}
+              />
             ) : (
-              <ul className="space-y-1.5">
-                {leads.map((l) => {
-                  const st = sending[l.id];
-                  const enviado = l.disparo === 'sim';
-                  const isSelected = selected.has(l.id);
-                  return (
-                    <li
-                      key={l.id}
-                      className={`surface px-4 py-3 flex items-start gap-3 hover:border-[var(--line-strong)] transition-colors ${
-                        isSelected ? '!border-[var(--accent-ring)]' : ''
-                      }`}
-                    >
-                      {!enviado ? (
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelect(l.id)}
-                          className="mt-1 accent-[var(--accent)] cursor-pointer"
-                          aria-label="Selecionar"
-                        />
-                      ) : (
-                        <div className="mt-1 w-[13px] h-[13px] flex items-center justify-center">
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                            <path d="M3 8.5l3.5 3.5L13 5" stroke="var(--success)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline gap-2 flex-wrap">
-                          {l.firstName && (
-                            <span className="text-[var(--accent)] font-medium text-sm">{l.firstName}</span>
-                          )}
-                          <span className="font-medium text-sm text-[var(--text)] truncate">
-                            {l.empresa ?? '—'}
-                          </span>
-                          <span className="chip chip--muted">{l.origem}</span>
-                        </div>
-                        <div className="text-[11px] text-[var(--text-muted)] flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                          <span className="num text-[var(--text-dim)]">{formatPhone(l.telefone)}</span>
-                          {l.site && <span className="truncate max-w-[240px] text-[var(--text-dim)]">{l.site}</span>}
-                        </div>
-                        {l.contexto && (
-                          <p className="text-xs text-[var(--text-muted)] mt-1.5 line-clamp-2">{l.contexto}</p>
-                        )}
-                        {l.ultimaMensagem && (
-                          <div className="mt-2 border-l-2 border-[var(--success)]/50 pl-2.5 text-[11px] text-[var(--text-dim)] whitespace-pre-wrap line-clamp-3">
-                            {l.ultimaMensagem}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => {
-                            setModalErr(null);
-                            setModal({ mode: 'edit', lead: l });
-                          }}
-                          className="btn-icon w-7 h-7"
-                          aria-label="Editar"
+              <div className="surface overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-[var(--bg-soft)] text-xs text-[var(--muted)] uppercase tracking-wider">
+                    <tr>
+                      <th className="w-8 px-2"></th>
+                      <th className="text-left px-3 py-2">Empresa</th>
+                      <th className="text-left px-3 py-2">Contato</th>
+                      <th className="text-left px-3 py-2">Telefone</th>
+                      <th className="text-left px-3 py-2">Etapa</th>
+                      <th className="text-left px-3 py-2">Score</th>
+                      <th className="text-left px-3 py-2">Msgs</th>
+                      <th className="text-left px-3 py-2">Última interação</th>
+                      <th className="text-right px-3 py-2 w-32">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.map((l) => {
+                      const st = sending[l.id];
+                      const enviado = l.disparo === 'sim';
+                      const isSelected = selected.has(l.id);
+                      const empresaNome = l.company?.nome ?? l.empresa ?? '—';
+                      const contatoNome = l.contact
+                        ? [l.contact.firstName, l.contact.lastName].filter(Boolean).join(' ')
+                        : l.firstName ?? '';
+                      const phone = l.contact?.phone ?? l.telefone;
+                      const stageNome = l.stage?.nome ?? '—';
+                      const score = l.interestScore ?? 0;
+                      const band = l.interestBand ?? 'cold';
+                      const bandColor =
+                        band === 'interested'
+                          ? '#10b981'
+                          : band === 'hot'
+                            ? '#ef4444'
+                            : band === 'warm'
+                              ? '#f59e0b'
+                              : '#94a3b8';
+                      return (
+                        <tr
+                          key={l.id}
+                          className={`border-t border-[var(--line)] hover:bg-[var(--bg-soft)] ${
+                            isSelected ? 'bg-[var(--accent-soft)]' : ''
+                          }`}
                         >
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                            <path d="M11.5 2.5l2 2L5 13l-3 1 1-3 8.5-8.5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
-                        {!enviado && (
-                          <button
-                            onClick={() => sendLead(l.id)}
-                            disabled={st === 'loading' || !selectedInstance}
-                            className="btn-primary px-3 py-1.5 text-xs"
-                          >
-                            {st === 'loading' ? 'Enviando…' : 'Disparar'}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteLead(l.id)}
-                          className="btn-icon w-7 h-7 hover:text-[var(--danger)]"
-                          aria-label="Remover"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                            <path
-                              d="M3 4h10M6 4V2.5a1 1 0 011-1h2a1 1 0 011 1V4M5 4l.5 9a1 1 0 001 1h3a1 1 0 001-1L11 4"
-                              stroke="currentColor"
-                              strokeWidth="1.3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                          <td className="px-2 align-middle">
+                            {!enviado ? (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSelect(l.id)}
+                                aria-label="Selecionar"
+                              />
+                            ) : (
+                              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                                <path d="M3 8.5l3.5 3.5L13 5" stroke="var(--success)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {l.company ? (
+                              <a
+                                href={`/dashboard/companies/${l.company.id}`}
+                                className="text-[var(--accent)] hover:underline"
+                              >
+                                {empresaNome}
+                              </a>
+                            ) : (
+                              <span className="text-[var(--text-muted)]">{empresaNome}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {l.contact ? (
+                              <a
+                                href={`/dashboard/contacts/${l.contact.id}`}
+                                className="text-[var(--accent)] hover:underline"
+                              >
+                                {contatoNome || '—'}
+                              </a>
+                            ) : (
+                              <span className="text-[var(--text-muted)]">{contatoNome || '—'}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 font-mono text-xs">{formatPhone(phone)}</td>
+                          <td className="px-3 py-2 text-xs">{stageNome}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{ width: `${Math.max(2, score)}%`, backgroundColor: bandColor }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-mono tabular-nums w-6 text-right">{score}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-center">{l.messagesOutCount ?? 0}</td>
+                          <td className="px-3 py-2 text-xs">
+                            {l.lastInteractionAt
+                              ? new Date(l.lastInteractionAt).toLocaleDateString('pt-BR')
+                              : '—'}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  setModalErr(null);
+                                  setModal({ mode: 'edit', lead: l });
+                                }}
+                                className="btn-icon w-7 h-7"
+                                aria-label="Editar"
+                                title="Editar"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                                  <path d="M11.5 2.5l2 2L5 13l-3 1 1-3 8.5-8.5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                              {!enviado && (
+                                <button
+                                  onClick={() => sendLead(l.id)}
+                                  disabled={st === 'loading' || !selectedInstance}
+                                  className="btn-primary px-2 py-1 text-[10px]"
+                                >
+                                  {st === 'loading' ? '…' : 'Disparar'}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => deleteLead(l.id)}
+                                className="btn-icon w-7 h-7 hover:text-[var(--danger)]"
+                                aria-label="Remover"
+                                title="Remover"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                                  <path
+                                    d="M3 4h10M6 4V2.5a1 1 0 011-1h2a1 1 0 011 1V4M5 4l.5 9a1 1 0 001 1h3a1 1 0 001-1L11 4"
+                                    stroke="currentColor"
+                                    strokeWidth="1.3"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </PageShell>
         )}
@@ -1111,7 +1130,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
             </div>
           </PageShell>
         )}
-      </main>
+      </div>
 
       {qr && typeof document !== 'undefined' &&
         createPortal(
@@ -1155,7 +1174,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
           onAction={loadLeads}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -1414,11 +1433,14 @@ function LeadModal({
   onAction?: () => void;
 }) {
   const [form, setForm] = useState<LeadFormValues>(initial);
+  const [savedForm, setSavedForm] = useState<LeadFormValues>(initial);
   const [saving, setSaving] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [tab, setTab] = useState<'edit' | 'conv'>('edit');
   const [localLead, setLocalLead] = useState<Lead | null>(lead ?? null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const dirty = JSON.stringify(form) !== JSON.stringify(savedForm);
 
   const band = localLead?.interestBand ?? 'cold';
   const score = localLead?.interestScore ?? 0;
@@ -1465,16 +1487,21 @@ function LeadModal({
   const set = <K extends keyof LeadFormValues>(k: K, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  function tryClose() {
+    if (dirty) setConfirmClose(true);
+    else onClose();
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-6"
-      onClick={onClose}
+      onClick={tryClose}
     >
       <div className="w-full max-w-lg surface p-6 space-y-4 rise" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-semibold">{title}</h3>
           <button
-            onClick={onClose}
+            onClick={tryClose}
             className="btn-icon w-7 h-7"
             aria-label="Fechar"
           >
@@ -1686,7 +1713,7 @@ function LeadModal({
         )}
 
         <div className="flex justify-end gap-2 pt-2 border-t border-[var(--line)]">
-          <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">
+          <button onClick={tryClose} className="btn-ghost px-4 py-2 text-sm">
             Cancelar
           </button>
           <button
@@ -1694,12 +1721,13 @@ function LeadModal({
               setSaving(true);
               try {
                 await onSave(form);
+                setSavedForm(form);
               } finally {
                 setSaving(false);
               }
             }}
-            disabled={saving}
-            className="btn-primary px-4 py-2 text-sm"
+            disabled={saving || !dirty}
+            className="btn-primary px-4 py-2 text-sm disabled:opacity-50"
           >
             {saving ? 'Salvando…' : cta}
           </button>
@@ -1707,6 +1735,53 @@ function LeadModal({
         </>
         )}
       </div>
+
+      {confirmClose && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-6"
+          onClick={() => setConfirmClose(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-md bg-white border border-[var(--line)] p-5 space-y-3 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold">Edições não salvas</h3>
+            <p className="text-sm text-[var(--muted)]">
+              Você tem alterações pendentes nesta oportunidade.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setConfirmClose(false)} className="btn-ghost px-3 py-1.5 text-sm">
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmClose(false);
+                  onClose();
+                }}
+                className="btn-ghost px-3 py-1.5 text-sm text-[var(--danger)]"
+              >
+                Descartar
+              </button>
+              <button
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    await onSave(form);
+                    setSavedForm(form);
+                    setConfirmClose(false);
+                    onClose();
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="btn-primary px-3 py-1.5 text-sm"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

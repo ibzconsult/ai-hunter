@@ -39,8 +39,31 @@ export async function PATCH(req: NextRequest, ctx: { params: Params }) {
     const raw = String(body.phone).trim();
     data.phone = raw ? normalizePhone(raw) : null;
   }
+  const settingPrimary = body.isPrimary === true;
+  if (body.isPrimary !== undefined) data.isPrimary = !!body.isPrimary;
 
   try {
+    const nextCompanyId =
+      (data.companyId as string | null | undefined) !== undefined
+        ? (data.companyId as string | null)
+        : existing.companyId;
+
+    if (settingPrimary && nextCompanyId) {
+      const contact = await prisma.$transaction(async (tx) => {
+        await tx.contact.updateMany({
+          where: {
+            tenantId: s.tenantId,
+            companyId: nextCompanyId,
+            isPrimary: true,
+            NOT: { id },
+          },
+          data: { isPrimary: false },
+        });
+        return tx.contact.update({ where: { id }, data });
+      });
+      return NextResponse.json({ ok: true, contact });
+    }
+
     const contact = await prisma.contact.update({ where: { id }, data });
     return NextResponse.json({ ok: true, contact });
   } catch (e) {

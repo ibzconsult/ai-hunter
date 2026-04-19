@@ -179,6 +179,7 @@ model Contact {
   role       String?  @db.VarChar(120)
   companyId  String?  @map("company_id") @db.Uuid
   company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  isPrimary  Boolean  @default(false) @map("is_primary")
   notes      String?
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -187,6 +188,7 @@ model Contact {
   @@unique([tenantId, phone])
   @@index([tenantId])
   @@index([companyId])
+  @@index([companyId, isPrimary])
   @@map("prospector_contacts")
 }
 

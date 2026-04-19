@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useDirtyForm, UnsavedConfirmDialog } from '../../_components/DirtyGuard';
 
 type Opportunity = {
   id: string;
@@ -23,16 +25,46 @@ type Contact = {
   role: string | null;
   companyId: string | null;
   company: { id: string; nome: string } | null;
+  isPrimary: boolean;
   notes: string | null;
   leads: Opportunity[];
 };
 
 type CompanyLite = { id: string; nome: string };
 
+type Draft = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  role: string;
+  companyId: string;
+  isPrimary: boolean;
+  notes: string;
+};
+
+function toDraft(c: Contact | null): Draft {
+  return {
+    firstName: c?.firstName ?? '',
+    lastName: c?.lastName ?? '',
+    email: c?.email ?? '',
+    phone: c?.phone ?? '',
+    role: c?.role ?? '',
+    companyId: c?.companyId ?? '',
+    isPrimary: c?.isPrimary ?? false,
+    notes: c?.notes ?? '',
+  };
+}
+
 export default function ContactDetailClient({ id }: { id: string }) {
+  const router = useRouter();
   const [contact, setContact] = useState<Contact | null>(null);
   const [companies, setCompanies] = useState<CompanyLite[]>([]);
   const [saving, setSaving] = useState(false);
+  const [leads, setLeads] = useState<Opportunity[]>([]);
+
+  const { form, setForm, dirty, persist } = useDirtyForm<Draft>(toDraft(contact));
+  const [confirmPending, setConfirmPending] = useState<null | 'back'>(null);
 
   useEffect(() => {
     void load();
@@ -44,43 +76,89 @@ export default function ContactDetailClient({ id }: { id: string }) {
   async function load() {
     const res = await fetch(`/api/contacts/${id}`);
     const data = await res.json();
-    if (data.ok) setContact(data.contact);
+    if (data.ok) {
+      setContact(data.contact);
+      setLeads(data.contact.leads ?? []);
+    }
   }
 
-  async function save(patch: Partial<Contact>) {
+  function set<K extends keyof Draft>(k: K, v: Draft[K]) {
+    setForm({ ...form, [k]: v });
+  }
+
+  async function save() {
     setSaving(true);
-    await fetch(`/api/contacts/${id}`, {
+    const res = await fetch(`/api/contacts/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
+      body: JSON.stringify({
+        firstName: form.firstName || null,
+        lastName: form.lastName || null,
+        email: form.email || null,
+        phone: form.phone || null,
+        role: form.role || null,
+        companyId: form.companyId || null,
+        isPrimary: form.isPrimary,
+      }),
     });
+    const data = await res.json();
     setSaving(false);
-    await load();
+    if (data.ok) {
+      await load();
+      persist(form);
+    }
+  }
+
+  async function handleBack() {
+    if (dirty) {
+      setConfirmPending('back');
+      return;
+    }
+    router.push('/dashboard/contacts');
+  }
+
+  async function onConfirm(choice: 'save' | 'discard' | 'cancel') {
+    if (choice === 'cancel') return setConfirmPending(null);
+    if (choice === 'save') {
+      await save();
+    }
+    setConfirmPending(null);
+    router.push('/dashboard/contacts');
   }
 
   if (!contact) return <div className="p-8 text-sm text-[var(--muted)]">Carregando…</div>;
 
   return (
     <div className="max-w-3xl mx-auto p-8 space-y-4">
-      <Link href="/dashboard/contacts" className="text-xs text-[var(--muted)] hover:underline">
+      <button onClick={handleBack} className="text-xs text-[var(--muted)] hover:underline">
         ← Contatos
-      </Link>
+      </button>
 
       <div className="surface p-4 space-y-3">
-        <h1 className="text-lg font-semibold">
-          {[contact.firstName, contact.lastName].filter(Boolean).join(' ') || '(sem nome)'}
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold">
+            {[form.firstName, form.lastName].filter(Boolean).join(' ') || '(sem nome)'}
+          </h1>
+          <button
+            onClick={save}
+            disabled={!dirty || saving}
+            className="btn-primary px-4 py-1.5 text-sm disabled:opacity-50"
+          >
+            {saving ? 'Salvando…' : 'Salvar'}
+          </button>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Nome" value={contact.firstName ?? ''} onChange={(v) => save({ firstName: v })} />
-          <Field label="Sobrenome" value={contact.lastName ?? ''} onChange={(v) => save({ lastName: v })} />
-          <Field label="Email" value={contact.email ?? ''} onChange={(v) => save({ email: v })} />
-          <Field label="Telefone" value={contact.phone ?? ''} onChange={(v) => save({ phone: v })} />
-          <Field label="Cargo" value={contact.role ?? ''} onChange={(v) => save({ role: v })} />
+          <Field label="Nome" value={form.firstName} onChange={(v) => set('firstName', v)} />
+          <Field label="Sobrenome" value={form.lastName} onChange={(v) => set('lastName', v)} />
+          <Field label="Email" value={form.email} onChange={(v) => set('email', v)} />
+          <Field label="Telefone" value={form.phone} onChange={(v) => set('phone', v)} />
+          <Field label="Cargo" value={form.role} onChange={(v) => set('role', v)} />
           <div>
             <label className="text-xs text-[var(--muted)]">Empresa</label>
             <select
-              value={contact.companyId ?? ''}
-              onChange={(e) => save({ companyId: e.target.value || null })}
+              value={form.companyId}
+              onChange={(e) => set('companyId', e.target.value)}
               className="input-field mt-1"
             >
               <option value="">(sem empresa)</option>
@@ -92,7 +170,19 @@ export default function ContactDetailClient({ id }: { id: string }) {
             </select>
           </div>
         </div>
-        {saving && <p className="text-xs text-[var(--muted)]">Salvando…</p>}
+
+        {form.companyId && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.isPrimary}
+              onChange={(e) => set('isPrimary', e.target.checked)}
+            />
+            Contato principal desta empresa
+          </label>
+        )}
+
+        {dirty && <p className="text-xs text-amber-700">Alterações pendentes.</p>}
       </div>
 
       {contact.company && (
@@ -108,12 +198,12 @@ export default function ContactDetailClient({ id }: { id: string }) {
       )}
 
       <div className="surface p-4">
-        <h2 className="text-sm font-semibold mb-2">Oportunidades ({contact.leads.length})</h2>
-        {contact.leads.length === 0 ? (
+        <h2 className="text-sm font-semibold mb-2">Oportunidades ({leads.length})</h2>
+        {leads.length === 0 ? (
           <p className="text-xs text-[var(--muted)]">Nenhuma oportunidade associada.</p>
         ) : (
           <ul className="divide-y divide-[var(--line)]">
-            {contact.leads.map((o) => (
+            {leads.map((o) => (
               <li key={o.id} className="py-2 flex items-center justify-between text-sm">
                 <div>
                   <Link href={`/dashboard?opportunity=${o.id}`} className="text-[var(--accent)] hover:underline">
@@ -129,6 +219,8 @@ export default function ContactDetailClient({ id }: { id: string }) {
           </ul>
         )}
       </div>
+
+      <UnsavedConfirmDialog open={confirmPending !== null} onChoice={onConfirm} />
     </div>
   );
 }
@@ -142,15 +234,12 @@ function Field({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const [local, setLocal] = useState(value);
-  useEffect(() => setLocal(value), [value]);
   return (
     <div>
       <label className="text-xs text-[var(--muted)]">{label}</label>
       <input
-        value={local}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => local !== value && onChange(local)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className="input-field mt-1"
       />
     </div>

@@ -9,6 +9,7 @@ type Company = {
   site: string | null;
   segmento: string | null;
   _count?: { contacts: number; leads: number };
+  primaryContact: { id: string; firstName: string | null; lastName: string | null } | null;
 };
 
 export default function CompaniesClient() {
@@ -63,32 +64,61 @@ export default function CompaniesClient() {
                 <th className="text-left px-3 py-2">Nome</th>
                 <th className="text-left px-3 py-2">Site</th>
                 <th className="text-left px-3 py-2">Segmento</th>
-                <th className="text-left px-3 py-2">Contatos</th>
+                <th className="text-left px-3 py-2">Principal</th>
                 <th className="text-left px-3 py-2">Oport.</th>
+                <th className="text-right px-3 py-2 w-12">Editar</th>
               </tr>
             </thead>
             <tbody>
-              {companies.map((c) => (
-                <tr key={c.id} className="border-t border-[var(--line)] hover:bg-[var(--bg-soft)]">
-                  <td className="px-3 py-2">
-                    <Link href={`/dashboard/companies/${c.id}`} className="text-[var(--accent)] hover:underline">
-                      {c.nome}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    {c.site ? (
-                      <a href={c.site} target="_blank" rel="noreferrer" className="hover:underline">
-                        {c.site}
-                      </a>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs">{c.segmento ?? '—'}</td>
-                  <td className="px-3 py-2 text-xs">{c._count?.contacts ?? 0}</td>
-                  <td className="px-3 py-2 text-xs">{c._count?.leads ?? 0}</td>
-                </tr>
-              ))}
+              {companies.map((c) => {
+                const primary = c.primaryContact
+                  ? [c.primaryContact.firstName, c.primaryContact.lastName].filter(Boolean).join(' ')
+                  : '';
+                return (
+                  <tr key={c.id} className="border-t border-[var(--line)] hover:bg-[var(--bg-soft)]">
+                    <td className="px-3 py-2">
+                      <Link href={`/dashboard/companies/${c.id}`} className="text-[var(--accent)] hover:underline">
+                        {c.nome}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {c.site ? (
+                        <a href={c.site} target="_blank" rel="noreferrer" className="hover:underline">
+                          {c.site}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs">{c.segmento ?? '—'}</td>
+                    <td className="px-3 py-2 text-xs">
+                      {c.primaryContact ? (
+                        <Link
+                          href={`/dashboard/contacts/${c.primaryContact.id}`}
+                          className="text-[var(--accent)] hover:underline"
+                        >
+                          {primary || '—'}
+                        </Link>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs">{c._count?.leads ?? 0}</td>
+                    <td className="px-3 py-2 text-right">
+                      <Link
+                        href={`/dashboard/companies/${c.id}`}
+                        className="text-[var(--muted)] hover:text-[var(--accent)]"
+                        aria-label="Editar empresa"
+                        title="Editar"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="inline-block">
+                          <path d="M11.5 2.5l2 2-7 7-2.5.5.5-2.5 7-7z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                        </svg>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

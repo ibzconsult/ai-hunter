@@ -18,9 +18,18 @@ export async function GET(req: NextRequest) {
     take: 500,
     include: {
       _count: { select: { contacts: true, leads: true } },
+      contacts: {
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+        take: 1,
+        select: { id: true, firstName: true, lastName: true, isPrimary: true },
+      },
     },
   });
-  return NextResponse.json({ ok: true, companies: rows });
+  const companies = rows.map((c) => ({
+    ...c,
+    primaryContact: c.contacts[0] ?? null,
+  }));
+  return NextResponse.json({ ok: true, companies });
 }
 
 export async function POST(req: NextRequest) {

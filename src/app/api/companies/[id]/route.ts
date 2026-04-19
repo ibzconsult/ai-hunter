@@ -11,10 +11,10 @@ export async function GET(_req: NextRequest, ctx: { params: Params }) {
   const company = await prisma.company.findFirst({
     where: { id, tenantId: s.tenantId },
     include: {
-      contacts: { orderBy: { firstName: 'asc' } },
+      contacts: { orderBy: [{ isPrimary: 'desc' }, { firstName: 'asc' }] },
       leads: {
         orderBy: { createdAt: 'desc' },
-        include: { stage: true },
+        include: { stage: true, contact: true },
       },
     },
   });
