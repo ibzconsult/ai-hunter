@@ -36,7 +36,7 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=network_public"
 
-        - "traefik.http.routers.aihunter.rule=Host(`ai-hunter.ibusiness.ia.br`)"
+        - "traefik.http.routers.aihunter.rule=Host(`ai-hunter.ibzconsultoria.com.br`)"
         - "traefik.http.routers.aihunter.entrypoints=websecure"
         - "traefik.http.routers.aihunter.tls=true"
         - "traefik.http.routers.aihunter.tls.certresolver=letsencryptresolver"
