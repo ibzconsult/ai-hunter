@@ -195,22 +195,26 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, messages, lead_id: lead.id });
   } catch (e) {
+    const leadId = lead?.id ?? null;
     if (e instanceof UazapiDisconnectedError) {
-      await prisma.instance.update({
-        where: { id: instance.id },
-        data: { status: 'disconnected', disconnectedAt: new Date() },
-      });
+      try {
+        await prisma.instance.update({
+          where: { id: instance.id },
+          data: { status: 'disconnected', disconnectedAt: new Date() },
+        });
+      } catch {}
       return NextResponse.json(
         {
           success: false,
           error: 'WhatsApp desconectado. Vá em "WhatsApp" e reconecte escaneando o QR Code.',
           reason: 'whatsapp_disconnected',
-          lead_id: lead.id,
+          lead_id: leadId,
         },
         { status: 409 }
       );
     }
-    const err = e instanceof Error ? e.message : 'Erro desconhecido';
-    return NextResponse.json({ success: false, error: err, lead_id: lead.id }, { status: 500 });
+    const err = e instanceof Error && e.message ? e.message : 'Erro desconhecido no dispatch';
+    console.error('[dispatch]', err, e);
+    return NextResponse.json({ success: false, error: err, lead_id: leadId }, { status: 500 });
   }
 }

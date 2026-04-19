@@ -202,7 +202,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
       if (data.success) {
         setInstances((arr) => [data.instance, ...arr]);
         if (data.instance.qrcode) setQr({ id: data.instance.id, qrcode: data.instance.qrcode });
-      } else alert(data.error);
+      } else alert(data.error ?? 'Erro desconhecido. Tente novamente.');
     } finally {
       setBusy(false);
     }
@@ -303,7 +303,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
       setSending((s) => ({ ...s, [p.telefone]: data.success ? 'ok' : 'err' }));
       if (data.success) {
         setProspects((arr) => arr.map((x) => (x.telefone === p.telefone ? { ...x, jaEnviado: true } : x)));
-      } else alert(data.error);
+      } else alert(data.error ?? 'Erro desconhecido. Tente novamente.');
     } catch {
       setSending((s) => ({ ...s, [p.telefone]: 'err' }));
     }
@@ -358,7 +358,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
               : l
           )
         );
-      } else alert(data.error);
+      } else alert(data.error ?? 'Erro desconhecido. Tente novamente.');
     } catch {
       setSending((s) => ({ ...s, [leadId]: 'err' }));
     }
