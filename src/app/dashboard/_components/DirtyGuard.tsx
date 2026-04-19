@@ -5,12 +5,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export function useDirtyForm<T>(initial: T) {
   const [form, setForm] = useState<T>(initial);
   const originalRef = useRef<T>(initial);
+  const initialKey = JSON.stringify(initial);
 
-  // Reinicializa quando `initial` muda (ex: carregamento tardio de dados).
+  // Reinicializa quando o CONTEÚDO de `initial` muda (não a referência).
   useEffect(() => {
     originalRef.current = initial;
     setForm(initial);
-  }, [initial]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialKey]);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(originalRef.current);
 
