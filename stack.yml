@@ -1,0 +1,49 @@
+# Docker Swarm stack file pro AI Hunter na VPS Hetzner do ibusiness.
+# Traefik já está em modo swarm usando network_public + certresolver `letsencryptresolver`.
+#
+# Build da imagem (localmente na VPS):
+#   cd /opt/ai-hunter
+#   docker build -t ai-hunter:latest .
+#
+# Deploy:
+#   docker stack deploy -c stack.yml ai-hunter
+#
+# Logs:
+#   docker service logs -f ai-hunter_web
+#
+# Update (após git pull + rebuild):
+#   docker build -t ai-hunter:latest . && docker service update --force --image ai-hunter:latest ai-hunter_web
+
+version: '3.8'
+
+services:
+  web:
+    image: ai-hunter:latest
+    env_file:
+      - /opt/ai-hunter/.env.production
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+
+        - "traefik.http.routers.aihunter.rule=Host(`ai-hunter.ibusiness.ia.br`)"
+        - "traefik.http.routers.aihunter.entrypoints=websecure"
+        - "traefik.http.routers.aihunter.tls=true"
+        - "traefik.http.routers.aihunter.tls.certresolver=letsencryptresolver"
+
+        - "traefik.http.services.aihunter.loadbalancer.server.port=3000"
+        - "traefik.http.services.aihunter.loadbalancer.passhostheader=true"
+
+networks:
+  network_public:
+    external: true

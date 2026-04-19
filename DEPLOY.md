@@ -1,63 +1,84 @@
-# Deploy na VPS Hetzner
+# Deploy na VPS Hetzner (Docker Swarm + Traefik)
 
-## Pré-requisitos
-- VPS com Docker + Traefik rodando (network `traefik-public` com certresolver `letsencrypt`)
-- Subdomínio apontado pra IP da VPS (ex: `ai-hunter.ibusiness.ia.br` via CNAME/A)
+## Infra existente
+- Host: `167.235.19.228`, user `root`, chave `~/.ssh/id_ed25519_hetzner`
+- Docker em Swarm mode
+- Traefik v2.11 como ingress, certresolver **`letsencryptresolver`**, network **`network_public`**
 
-## Primeiro deploy
+## 1. DNS
+
+Aponte `ai-hunter.ibusiness.ia.br` (ou o domínio escolhido) pro IP da VPS (`167.235.19.228`) via registro **A**. Em seguida espera o SSL subir (~1min).
+
+Se usar outro domínio, edite `stack.yml` trocando o valor da label `Host(...)`.
+
+## 2. Primeiro deploy
 
 ```bash
 # SSH na VPS
-ssh -i ~/.ssh/ed25519_hetzner root@167.235.19.228
+ssh -i ~/.ssh/id_ed25519_hetzner root@167.235.19.228
 
-# Clone ou copia o repo
-cd /opt
+# Clone o repo
+mkdir -p /opt && cd /opt
 git clone https://github.com/ibzconsult/ai-hunter.git
 cd ai-hunter
 
-# Cria .env.production com TODAS as variáveis:
+# Crie o .env.production com TODAS as env vars:
 #   DATABASE_URL, DIRECT_URL, JWT_SECRET, UAZAPI_URL, UAZAPI_ADMIN_TOKEN,
 #   FOLLOWUP_CRON_TOKEN
-cp .env.example .env.production   # se existir; senão, cria do zero
 nano .env.production
 
-# Build + up
-docker compose up -d --build
+# Build da imagem
+docker build -t ai-hunter:latest .
 
-# Confere logs
-docker compose logs -f ai-hunter
+# Deploy como stack
+docker stack deploy -c stack.yml ai-hunter
+
+# Acompanha logs do service
+docker service logs -f ai-hunter_web
 ```
 
-## Atualização (deploy subsequente)
+Em ~1 min, `https://ai-hunter.ibusiness.ia.br` deve responder.
+
+## 3. Atualização (deploys futuros)
 
 ```bash
 cd /opt/ai-hunter
 git pull
-docker compose up -d --build
-docker compose logs -f ai-hunter
+docker build -t ai-hunter:latest .
+docker service update --force --image ai-hunter:latest ai-hunter_web
+docker service logs -f ai-hunter_web
 ```
 
-Traefik renova SSL automaticamente. Container reinicia sozinho se crashar.
+`update_config: order: start-first` garante que o container novo sobe antes do antigo cair — deploy sem downtime.
 
-## DNS
+## 4. Reapontamentos
 
-Aponta `ai-hunter.ibusiness.ia.br` (ou subdomínio escolhido) pro IP da VPS via:
-- CNAME → outro domínio da VPS, OU
-- A record → `167.235.19.228`
+- **n8n cron workflow**: troca URL do HTTP Request de `https://ai-hunter.netlify.app/api/cron/followups` pra `https://ai-hunter.ibusiness.ia.br/api/cron/followups`. Bearer token continua o mesmo.
+- **UazAPI webhook**: reaponta o webhook da instância pra `https://ai-hunter.ibusiness.ia.br/api/webhooks/uazapi`.
 
-Se o network Traefik tiver outro nome, edita `docker-compose.yml` trocando `traefik-public` pelo nome correto. Pra descobrir:
+## 5. Diagnóstico
 
 ```bash
-docker network ls | grep traefik
+# Service health
+docker service ps ai-hunter_web
+
+# Container stats (CPU/RAM)
+docker stats $(docker ps --filter name=ai-hunter_web -q)
+
+# Logs paginados
+docker service logs --tail 200 ai-hunter_web
 ```
 
-## n8n cron
+## 6. Rollback
 
-Após subir, atualize o workflow do n8n pra apontar pra nova URL:
-`https://ai-hunter.ibusiness.ia.br/api/cron/followups` com o mesmo Bearer token
-(`FOLLOWUP_CRON_TOKEN`).
+```bash
+docker service rollback ai-hunter_web
+```
 
-## Webhook Uazapi
+## 7. Teardown (caso precise desmontar)
 
-Reaponte o webhook da instância pro endpoint novo:
-`https://ai-hunter.ibusiness.ia.br/api/webhooks/uazapi`
+```bash
+docker stack rm ai-hunter
+# Opcional: remove imagens
+docker image rm ai-hunter:latest
+```
