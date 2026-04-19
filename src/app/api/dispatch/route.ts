@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { sendText } from '@/lib/uazapi';
+import { sendText, UazapiDisconnectedError } from '@/lib/uazapi';
 import { generateMessages } from '@/lib/openai';
 import { scrapeSiteDeep, flattenScrape } from '@/lib/scraper';
 import { analyzeSite, type SiteAnalysis } from '@/lib/siteAnalysis';
@@ -195,6 +195,21 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, messages, lead_id: lead.id });
   } catch (e) {
+    if (e instanceof UazapiDisconnectedError) {
+      await prisma.instance.update({
+        where: { id: instance.id },
+        data: { status: 'disconnected', disconnectedAt: new Date() },
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'WhatsApp desconectado. Vá em "WhatsApp" e reconecte escaneando o QR Code.',
+          reason: 'whatsapp_disconnected',
+          lead_id: lead.id,
+        },
+        { status: 409 }
+      );
+    }
     const err = e instanceof Error ? e.message : 'Erro desconhecido';
     return NextResponse.json({ success: false, error: err, lead_id: lead.id }, { status: 500 });
   }

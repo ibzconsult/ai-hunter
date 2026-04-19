@@ -3,6 +3,13 @@ const ADMIN_TOKEN = process.env.UAZAPI_ADMIN_TOKEN ?? '';
 
 type Json = Record<string, unknown>;
 
+export class UazapiDisconnectedError extends Error {
+  constructor() {
+    super('WhatsApp disconnected');
+    this.name = 'UazapiDisconnectedError';
+  }
+}
+
 async function call<T = Json>(path: string, init: RequestInit): Promise<T> {
   const res = await fetch(`${UAZAPI_URL}${path}`, {
     ...init,
@@ -11,6 +18,9 @@ async function call<T = Json>(path: string, init: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text();
+    if (res.status === 503 || /whatsapp\s+disconnected/i.test(text)) {
+      throw new UazapiDisconnectedError();
+    }
     throw new Error(`Uazapi ${path} ${res.status}: ${text.slice(0, 200)}`);
   }
   return res.json() as Promise<T>;

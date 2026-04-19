@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { searchProspects } from '@/lib/serpapi';
-import { checkWhatsApp } from '@/lib/uazapi';
+import { checkWhatsApp, UazapiDisconnectedError } from '@/lib/uazapi';
 
 export async function POST(req: NextRequest) {
   const s = await getSession();
@@ -48,7 +48,26 @@ export async function POST(req: NextRequest) {
     }
 
     const phones = prospects.map((p) => p.telefone);
-    const waMap = await checkWhatsApp(instance.instanceToken, phones);
+    let waMap: Record<string, boolean>;
+    try {
+      waMap = await checkWhatsApp(instance.instanceToken, phones);
+    } catch (e) {
+      if (e instanceof UazapiDisconnectedError) {
+        await prisma.instance.update({
+          where: { id: instanceId },
+          data: { status: 'disconnected', disconnectedAt: new Date() },
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Sua instância de WhatsApp está desconectada. Abra "WhatsApp" no menu e reconecte escaneando o QR Code.',
+            reason: 'whatsapp_disconnected',
+          },
+          { status: 409 }
+        );
+      }
+      throw e;
+    }
     const onlyWa = prospects.filter((p) => waMap[p.telefone]);
 
     const existing = await prisma.lead.findMany({
