@@ -95,6 +95,17 @@ function buildSystemPrompt(
 ): string {
   const parties = resolveOpportunityParties(lead);
   const persona = tenant.agentPersona?.trim() || `Você representa ${tenant.nomeEmpresa}. Tom: ${tenant.tomAbordagem}.`;
+
+  const guardrailsBlock = tenant.agentGuardrails?.trim()
+    ? `\n## GUARDRAILS OBRIGATÓRIOS (definidos pelo usuário)\n${tenant.agentGuardrails.trim()}\n\nEstas regras são INEGOCIÁVEIS. Se uma diretriz abaixo conflita com elas, obedeça às guardrails.`
+    : '';
+
+  const ctas = [tenant.agentCta1, tenant.agentCta2, tenant.agentCta3]
+    .map((c) => c?.trim())
+    .filter((c): c is string => !!c);
+  const ctaBlock = ctas.length
+    ? `\n## CTA DESTA RODADA\nUse como CTA quando for fechar o turno (adapte natural, mas mantenha a ideia):\n"${ctas[Math.floor(Math.random() * ctas.length)]}"`
+    : '';
   const kbBlock = docs.length
     ? docs
         .map((d) => {
@@ -119,6 +130,7 @@ ${tenant.inboundGreeting ? `Referência de abertura do usuário: "${tenant.inbou
       : `Você está dando continuidade a uma conversa que JÁ COMEÇOU. O lead acabou de responder. Sua tarefa: continuar de forma natural — não bot, não vendedor empolgado.`;
 
   return `${persona}
+${guardrailsBlock}${ctaBlock}
 
 ${modeBlock}
 

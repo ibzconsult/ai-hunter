@@ -25,6 +25,11 @@ type Tenant = {
   notificationPhone: string | null;
   agentEnabled: boolean;
   agentPersona: string | null;
+  agentGuardrails?: string | null;
+  agentCta1?: string | null;
+  agentCta2?: string | null;
+  agentCta3?: string | null;
+  inboundGreeting?: string | null;
 };
 
 type Instance = {
@@ -182,6 +187,11 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
     notification_phone: tenant.notificationPhone ?? '',
     agent_enabled: tenant.agentEnabled,
     agent_persona: tenant.agentPersona ?? '',
+    agent_guardrails: tenant.agentGuardrails ?? '',
+    agent_cta_1: tenant.agentCta1 ?? '',
+    agent_cta_2: tenant.agentCta2 ?? '',
+    agent_cta_3: tenant.agentCta3 ?? '',
+    inbound_greeting: tenant.inboundGreeting ?? '',
   });
 
   async function logout() {
@@ -266,14 +276,17 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
       const data = await res.json();
       if (data.success) {
         setProspects(data.prospects);
+        const qinfo = Array.isArray(data.queries) && data.queries.length > 1
+          ? ` (buscou: ${data.queries.join(', ')})`
+          : '';
         if (data.prospects.length === 0) {
           setSearchMsg(
             data.totalFound > 0
-              ? `${data.totalFound} resultados — nenhum com WhatsApp válido.`
-              : 'Nenhum resultado com telefone.'
+              ? `${data.totalFound} resultados — nenhum com WhatsApp válido.${qinfo}`
+              : `Nenhum resultado com telefone.${qinfo}`
           );
         } else {
-          setSearchMsg(`${data.withWhatsapp} com WhatsApp de ${data.totalFound} encontrados.`);
+          setSearchMsg(`${data.withWhatsapp} com WhatsApp de ${data.totalFound} encontrados.${qinfo}`);
         }
       } else setSearchMsg(data.error ?? 'Erro na busca');
     } finally {
@@ -1055,6 +1068,51 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
                     placeholder="Você é o consultor da ibusiness, tom direto, sem prometer prazo, escala dúvida fora da KB."
                   />
                 </FieldStacked>
+                <FieldStacked
+                  label="Guardrails"
+                  hint="regras INEGOCIÁVEIS — o que o agente NÃO pode dizer, prometer ou fazer."
+                >
+                  <textarea
+                    rows={5}
+                    value={profile.agent_guardrails}
+                    onChange={(e) => setProfile((p) => ({ ...p, agent_guardrails: e.target.value }))}
+                    className="input-field"
+                    placeholder={'- Nunca cite preços antes que o lead peça.\n- Se perguntarem sobre concorrente X, diga "não comento outras empresas".\n- Proibido prometer prazo de entrega.\n- Nunca use emojis.\n- Se falar sobre reembolso, escale pro time humano.'}
+                  />
+                </FieldStacked>
+                <FieldStacked
+                  label="Abertura de inbound"
+                  hint="quando um número novo inicia conversa, essa é a referência de tom."
+                >
+                  <textarea
+                    rows={2}
+                    value={profile.inbound_greeting}
+                    onChange={(e) => setProfile((p) => ({ ...p, inbound_greeting: e.target.value }))}
+                    className="input-field"
+                    placeholder='"Oi, aqui é da ibusiness, posso te ajudar? Conta rapidinho o que você está buscando."'
+                  />
+                </FieldStacked>
+                <div className="space-y-2">
+                  <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-medium">
+                    CTAs (agente escolhe aleatoriamente entre os preenchidos)
+                  </div>
+                  {([
+                    ['agent_cta_1', profile.agent_cta_1, 'posso te mandar um case parecido de 30s?'],
+                    ['agent_cta_2', profile.agent_cta_2, 'topa uma call de 15min essa semana?'],
+                    ['agent_cta_3', profile.agent_cta_3, 'quer que eu envie o diagnóstico gratuito?'],
+                  ] as const).map(([key, value, placeholder]) => (
+                    <input
+                      key={key}
+                      value={value}
+                      onChange={(e) => setProfile((p) => ({ ...p, [key]: e.target.value }))}
+                      className="input-field"
+                      placeholder={placeholder}
+                    />
+                  ))}
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Deixe todos em branco e o agente escolhe sozinho. Preenchendo 1-3, ele sorteia a cada turno.
+                  </p>
+                </div>
               </div>
 
               <div className="pt-3 border-t border-[var(--line)]">

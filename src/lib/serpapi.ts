@@ -23,6 +23,49 @@ export type Prospect = {
 const PAGE_SIZE = 20;
 const DEFAULT_MAX_PAGES = 5; // 20 × 5 = até 100 resultados
 
+export async function expandSegmentQueries(
+  apiKey: string,
+  segmento: string,
+  location?: string
+): Promise<string[]> {
+  if (!apiKey || !segmento.trim()) return [segmento];
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: `Gere variações do termo de busca pra encontrar empresas no Google Maps brasileiro. Retorne JSON {"queries": [3-5 termos]} — inclua o termo original + sinônimos reais usados no mercado. Sem frases longas, sem adjetivos, só o tipo de negócio. Exemplo: "transportadora" → {"queries":["transportadora","empresa de transporte","frete","logística","transporte de cargas"]}.`,
+          },
+          {
+            role: 'user',
+            content: `Termo: ${segmento}${location ? ` (busca em ${location})` : ''}`,
+          },
+        ],
+        temperature: 0.3,
+      }),
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    if (!res.ok) return [segmento];
+    const json = await res.json();
+    const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? '{}');
+    const arr: string[] = Array.isArray(parsed.queries) ? parsed.queries : [];
+    const deduped = Array.from(new Set([segmento, ...arr.map((s) => String(s).trim()).filter(Boolean)]));
+    return deduped.slice(0, 5);
+  } catch {
+    return [segmento];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function searchProspects(
   apiKey: string,
   query: string,

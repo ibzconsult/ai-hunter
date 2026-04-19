@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { searchProspects } from '@/lib/serpapi';
+import { searchProspects, expandSegmentQueries } from '@/lib/serpapi';
 import { checkWhatsApp, UazapiDisconnectedError } from '@/lib/uazapi';
 
 export async function POST(req: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: s.tenantId },
-    select: { serpapiKey: true },
+    select: { serpapiKey: true, openaiApiKey: true },
   });
   if (!tenant?.serpapiKey) {
     return NextResponse.json(
@@ -43,11 +43,33 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const prospects = await searchProspects(tenant.serpapiKey, query, location, {
-      maxPages: maxPages,
-    });
+    // Expansão de sinônimos via IA pra pegar mais empresas além do termo exato.
+    const queries = tenant.openaiApiKey
+      ? await expandSegmentQueries(tenant.openaiApiKey, query, location)
+      : [query];
+
+    // Executa todas as buscas em paralelo, dedup por telefone.
+    const perQueryLimit = Math.max(1, Math.ceil((maxPages ?? 3) / queries.length) + 1);
+    const results = await Promise.all(
+      queries.map((q) => searchProspects(tenant.serpapiKey!, q, location, { maxPages: perQueryLimit }))
+    );
+    const seen = new Set<string>();
+    const prospects: typeof results[number] = [];
+    for (const arr of results) {
+      for (const p of arr) {
+        if (seen.has(p.telefone)) continue;
+        seen.add(p.telefone);
+        prospects.push(p);
+      }
+    }
     if (prospects.length === 0) {
-      return NextResponse.json({ success: true, prospects: [], totalFound: 0, withWhatsapp: 0 });
+      return NextResponse.json({
+        success: true,
+        prospects: [],
+        totalFound: 0,
+        withWhatsapp: 0,
+        queries,
+      });
     }
 
     const phones = prospects.map((p) => p.telefone);
@@ -90,6 +112,7 @@ export async function POST(req: NextRequest) {
       prospects: enriched,
       totalFound: prospects.length,
       withWhatsapp: enriched.length,
+      queries,
     });
   } catch (e) {
     const err = e instanceof Error ? e.message : 'Erro na busca';

@@ -30,6 +30,10 @@ model Tenant {
   notificationPhone String?   @map("notification_phone") @db.VarChar(20)
   agentEnabled     Boolean    @default(false) @map("agent_enabled")
   agentPersona     String?    @map("agent_persona")
+  agentGuardrails  String?    @map("agent_guardrails")
+  agentCta1        String?    @map("agent_cta_1")
+  agentCta2        String?    @map("agent_cta_2")
+  agentCta3        String?    @map("agent_cta_3")
   isActive         Boolean    @default(true) @map("is_active")
   createdAt        DateTime   @default(now()) @map("created_at")
   instances        Instance[]

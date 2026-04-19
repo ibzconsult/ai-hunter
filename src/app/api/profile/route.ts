@@ -24,6 +24,11 @@ export async function PUT(req: NextRequest) {
     notificationPhone: body.notification_phone?.toString().trim() ?? undefined,
     agentEnabled: typeof body.agent_enabled === 'boolean' ? body.agent_enabled : undefined,
     agentPersona: body.agent_persona?.toString() ?? undefined,
+    agentGuardrails: body.agent_guardrails?.toString() ?? undefined,
+    agentCta1: body.agent_cta_1?.toString() ?? undefined,
+    agentCta2: body.agent_cta_2?.toString() ?? undefined,
+    agentCta3: body.agent_cta_3?.toString() ?? undefined,
+    inboundGreeting: body.inbound_greeting?.toString() ?? undefined,
   };
 
   const tenant = await prisma.tenant.update({

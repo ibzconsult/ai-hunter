@@ -29,6 +29,11 @@ export default async function DashboardPage() {
         notificationPhone: true,
         agentEnabled: true,
         agentPersona: true,
+        agentGuardrails: true,
+        agentCta1: true,
+        agentCta2: true,
+        agentCta3: true,
+        inboundGreeting: true,
       },
     }),
     prisma.instance.findMany({
