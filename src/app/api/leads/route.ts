@@ -3,20 +3,58 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { firstStageId } from '@/lib/pipeline';
 import { normalizePhone } from '@/lib/phone';
+import { upsertCompanyByName, upsertContactByPhone } from '@/lib/crm';
 
 export async function POST(req: NextRequest) {
   const s = await getSession();
   if (!s) return NextResponse.json({ success: false }, { status: 401 });
   const body = await req.json().catch(() => ({}));
 
-  const phone = normalizePhone(String(body.telefone ?? ''));
-  if (!phone) return NextResponse.json({ success: false, error: 'WhatsApp inválido' }, { status: 400 });
+  const phoneRaw = body.telefone ? String(body.telefone).trim() : '';
+  const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
+  const empresa = body.empresa ? String(body.empresa).trim() || null : null;
+  let contactId = body.contactId ? String(body.contactId) : null;
+  let companyId = body.companyId ? String(body.companyId) : null;
 
-  const dup = await prisma.lead.findFirst({
-    where: { tenantId: s.tenantId, telefone: phone },
-    select: { id: true },
-  });
-  if (dup) return NextResponse.json({ success: false, error: 'Lead com esse WhatsApp já existe' }, { status: 400 });
+  // Oportunidade precisa de ao menos um dos dois (contato OU empresa)
+  const hasContactInfo = phone || body.firstName || contactId;
+  const hasCompanyInfo = empresa || companyId;
+  if (!hasContactInfo && !hasCompanyInfo) {
+    return NextResponse.json(
+      { success: false, error: 'Informe ao menos contato ou empresa' },
+      { status: 400 }
+    );
+  }
+
+  // Se phone, valida duplicidade (unique em Lead)
+  if (phone) {
+    const dup = await prisma.lead.findFirst({
+      where: { tenantId: s.tenantId, telefone: phone },
+      select: { id: true },
+    });
+    if (dup)
+      return NextResponse.json(
+        { success: false, error: 'Lead com esse WhatsApp já existe' },
+        { status: 400 }
+      );
+  }
+
+  // Upsert Company se vier empresa string inline
+  if (!companyId && empresa) {
+    const c = await upsertCompanyByName(s.tenantId, empresa, {
+      site: body.site ? String(body.site).trim() || null : null,
+    });
+    companyId = c.id;
+  }
+
+  // Upsert Contact se vier phone
+  if (!contactId && phone) {
+    const c = await upsertContactByPhone(s.tenantId, phone, {
+      firstName: body.firstName ? String(body.firstName).trim() || null : null,
+      companyId,
+    });
+    contactId = c.id;
+  }
 
   const firstName = body.firstName ? String(body.firstName).trim() || null : null;
   const stageId = await firstStageId(s.tenantId);
@@ -25,14 +63,17 @@ export async function POST(req: NextRequest) {
       tenantId: s.tenantId,
       telefone: phone,
       firstName,
-      empresa: body.empresa ? String(body.empresa).trim() || null : null,
+      empresa,
       site: body.site ? String(body.site).trim() || null : null,
       contexto: body.contexto ? String(body.contexto).trim() || null : null,
+      contactId,
+      companyId,
       origem: ['manual', 'inbound', 'outbound', 'indication'].includes(String(body.origem))
         ? String(body.origem)
         : 'manual',
       stageId,
     },
+    include: { contact: true, company: true },
   });
   return NextResponse.json({ success: true, lead });
 }
@@ -53,7 +94,11 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { createdAt: 'desc' },
     take: 500,
-    include: { tags: { include: { tag: true } } },
+    include: {
+      tags: { include: { tag: true } },
+      contact: true,
+      company: true,
+    },
   });
   const leads = rows.map((l) => ({
     ...l,

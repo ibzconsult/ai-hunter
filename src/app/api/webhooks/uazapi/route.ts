@@ -6,6 +6,7 @@ import { normalizePhone } from '@/lib/phone';
 import { runAgentTurn } from '@/lib/agent';
 import { onLeadReplied, onManualOutbound } from '@/lib/followup';
 import { bumpScoreFromFreshMessage } from '@/lib/scoring';
+import { upsertContactByPhone } from '@/lib/crm';
 
 function extractPayload(body: Record<string, unknown>) {
   const nested = (body.data ?? body.message ?? body) as Record<string, unknown>;
@@ -84,10 +85,12 @@ export async function POST(req: NextRequest) {
   // Lead novo: criar como draft (inbound)
   if (!lead) {
     const triageStage = await stageIdByType(instance.tenantId, 'triage');
+    const contact = await upsertContactByPhone(instance.tenantId, phone);
     lead = await prisma.lead.create({
       data: {
         tenantId: instance.tenantId,
         telefone: phone,
+        contactId: contact.id,
         origem: 'inbound',
         isDraft: true,
         stageId: triageStage,

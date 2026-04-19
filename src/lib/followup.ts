@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { sendText, sendMedia } from '@/lib/uazapi';
-import type { FollowupConfig, FollowupStep, Instance, KnowledgeDoc, Lead, Tenant } from '@prisma/client';
+import { resolveOpportunityParties } from '@/lib/crm';
+import type { FollowupConfig, FollowupStep, Instance, KnowledgeDoc, Lead, Tenant, Contact, Company } from '@prisma/client';
 
 const FOLLOWUP_MODEL = 'gpt-4.1-mini';
 const HISTORY_LIMIT = 30;
@@ -90,12 +91,13 @@ export function computeNextFollowupAt(
 
 async function buildFollowupMessage(
   tenant: Tenant,
-  lead: Lead,
+  lead: Lead & { contact?: Contact | null; company?: Company | null },
   step: FollowupStep,
   position: { n: number; total: number },
   docs: KnowledgeDoc[]
 ): Promise<string | null> {
   if (!tenant.openaiApiKey) return null;
+  const parties = resolveOpportunityParties(lead);
 
   const history = await prisma.message.findMany({
     where: { leadId: lead.id, tenantId: tenant.id },
@@ -135,9 +137,9 @@ Esta é a tentativa ${position.n} de ${position.total} — quanto maior N, mais 
 - Proposta de valor: ${tenant.propostaValor ?? '(?)'}
 
 ## LEAD
-- Empresa: ${lead.empresa ?? '(?)'}
-- Nome: ${lead.firstName ?? '(?)'}
-- Segmento: ${lead.especialidades ?? '(?)'}
+- Empresa: ${parties.company?.nome ?? '(?)'}
+- Nome: ${parties.contact?.firstName ?? '(?)'}
+- Segmento: ${parties.company?.segmento ?? '(?)'}
 
 ## HISTÓRICO
 ${transcript}
@@ -205,12 +207,15 @@ export async function sendFollowup(leadId: string): Promise<
     where: { id: leadId },
     include: {
       tenant: { include: { followupConfig: { include: { steps: true } } } },
+      contact: true,
+      company: true,
     },
   });
   if (!lead) return { ok: false, reason: 'lead_not_found' };
   if (lead.interested) return { ok: true, skipped: 'interested' };
   if (lead.isDraft) return { ok: true, skipped: 'draft' };
-  if (!lead.telefone) return { ok: false, reason: 'no_phone' };
+  const targetPhone = lead.contact?.phone ?? lead.telefone;
+  if (!targetPhone) return { ok: false, reason: 'no_phone' };
   if (lead.followupManuallyPaused) return { ok: true, skipped: 'manually_paused' };
 
   const config = lead.tenant.followupConfig;
@@ -235,7 +240,7 @@ export async function sendFollowup(leadId: string): Promise<
   const fixedDoc = step.docId ? docs.find((d) => d.id === step.docId && d.sendable && d.fileUrl) : null;
 
   try {
-    await sendText(instance.instanceToken, lead.telefone, text);
+    await sendText(instance.instanceToken, targetPhone, text);
   } catch (e) {
     return { ok: false, reason: `send_text_failed: ${e instanceof Error ? e.message : 'unknown'}` };
   }
@@ -251,7 +256,7 @@ export async function sendFollowup(leadId: string): Promise<
 
   if (fixedDoc) {
     try {
-      await sendMedia(instance.instanceToken, lead.telefone, fixedDoc.fileUrl!, {
+      await sendMedia(instance.instanceToken, targetPhone, fixedDoc.fileUrl!, {
         caption: '',
         type: (fixedDoc.fileType as 'document' | 'image' | 'video' | 'audio' | undefined) ?? 'document',
         fileName: fixedDoc.titulo,

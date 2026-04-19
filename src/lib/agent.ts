@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/db';
 import { sendText, sendMedia } from '@/lib/uazapi';
 import { stageIdByType } from '@/lib/pipeline';
-import type { Tenant, Lead, Instance, KnowledgeDoc } from '@prisma/client';
+import { resolveOpportunityParties } from '@/lib/crm';
+import type { Tenant, Lead, Instance, KnowledgeDoc, Contact, Company } from '@prisma/client';
 
 const MODEL = 'gpt-4.1';
 const MAX_TURNS = 6;
@@ -88,10 +89,11 @@ const TOOLS = [
 
 function buildSystemPrompt(
   tenant: Tenant,
-  lead: Lead,
+  lead: Lead & { contact?: Contact | null; company?: Company | null },
   docs: KnowledgeDoc[],
   mode: 'inbound_first' | 'continuation'
 ): string {
+  const parties = resolveOpportunityParties(lead);
   const persona = tenant.agentPersona?.trim() || `Você representa ${tenant.nomeEmpresa}. Tom: ${tenant.tomAbordagem}.`;
   const kbBlock = docs.length
     ? docs
@@ -128,10 +130,10 @@ ${modeBlock}
 - Proposta de valor: ${tenant.propostaValor ?? '(?)'}
 
 ## SOBRE O LEAD ATUAL
-- Empresa: ${lead.empresa ?? '(?)'}
-- Nome: ${lead.firstName ?? '(?)'}
-- Segmento: ${lead.especialidades ?? '(?)'}
-- Site: ${lead.site ?? '(?)'}
+- Empresa: ${parties.company?.nome ?? '(?)'}
+- Nome: ${parties.contact?.firstName ?? '(?)'}
+- Segmento: ${parties.company?.segmento ?? '(?)'}
+- Site: ${parties.company?.site ?? '(?)'}
 - Contexto inicial: ${lead.contexto ?? '(?)'}
 
 ## DOCUMENTOS DISPONÍVEIS (knowledge base)
@@ -205,8 +207,15 @@ export async function runAgentTurn(
   if (lead.isDraft) return { replies: [], toolsUsed: [] };
   if (!tenant.openaiApiKey) throw new Error('OpenAI key ausente');
   if (!instance.instanceToken) throw new Error('Instance sem token');
-  if (!lead.telefone) throw new Error('Lead sem telefone');
   const token = instance.instanceToken;
+
+  const leadWithParties = await prisma.lead.findUnique({
+    where: { id: lead.id },
+    include: { contact: true, company: true },
+  });
+  if (!leadWithParties) throw new Error('Lead não encontrado');
+  const targetPhone = leadWithParties.contact?.phone ?? leadWithParties.telefone;
+  if (!targetPhone) throw new Error('Lead sem telefone');
 
   const [history, docs] = await Promise.all([
     prisma.message.findMany({
@@ -224,7 +233,7 @@ export async function runAgentTurn(
     : 'continuation';
 
   const messages: ChatMessage[] = [
-    { role: 'system', content: buildSystemPrompt(tenant, lead, docs, mode) },
+    { role: 'system', content: buildSystemPrompt(tenant, leadWithParties, docs, mode) },
     ...loadHistory(history),
     { role: 'user', content: incomingText },
   ];
@@ -254,7 +263,7 @@ export async function runAgentTurn(
           const args = safeParse<{ text?: string }>(tc.function.arguments) ?? {};
           const text = (args.text ?? '').trim();
           if (text) {
-            await sendText(token, lead.telefone, text);
+            await sendText(token, targetPhone, text);
             await prisma.message.create({
               data: {
                 tenantId: tenant.id,
@@ -278,7 +287,7 @@ export async function runAgentTurn(
             toolResult = 'erro: doc não é sendable ou sem fileUrl';
           } else {
             const caption = (args.captionShort ?? '').slice(0, 120);
-            await sendMedia(token, lead.telefone, doc.fileUrl, {
+            await sendMedia(token, targetPhone, doc.fileUrl, {
               caption,
               type: (doc.fileType as 'document' | 'image' | 'video' | 'audio' | undefined) ?? 'document',
               fileName: doc.titulo,
@@ -303,7 +312,7 @@ export async function runAgentTurn(
           if (!tenant.notificationPhone) {
             toolResult = 'erro: notificationPhone não configurado';
           } else {
-            const alert = `🔔 Lead interessado: ${lead.empresa ?? lead.firstName ?? lead.telefone}\nMotivo: ${reason}\nResumo: ${summary}`;
+            const alert = `🔔 Lead interessado: ${leadWithParties.company?.nome ?? leadWithParties.contact?.firstName ?? targetPhone}\nMotivo: ${reason}\nResumo: ${summary}`;
             await sendText(token, tenant.notificationPhone, alert);
             await prisma.lead.update({
               where: { id: lead.id },
@@ -357,7 +366,7 @@ export async function runAgentTurn(
         await sendText(
           token,
           tenant.notificationPhone,
-          `🔔 Agente travado no lead ${lead.empresa ?? lead.telefone}: 3 turns sem replyText. Assuma a conversa.`
+          `🔔 Agente travado no lead ${leadWithParties.company?.nome ?? targetPhone}: 3 turns sem replyText. Assuma a conversa.`
         ).catch(() => {});
       }
       break;
@@ -369,7 +378,7 @@ export async function runAgentTurn(
     await sendText(
       token,
       tenant.notificationPhone,
-      `🔔 Agente não conseguiu responder o lead ${lead.empresa ?? lead.telefone}. Mensagem recebida: "${incomingText.slice(0, 200)}"`
+      `🔔 Agente não conseguiu responder o lead ${leadWithParties.company?.nome ?? targetPhone}. Mensagem recebida: "${incomingText.slice(0, 200)}"`
     ).catch(() => {});
   }
 

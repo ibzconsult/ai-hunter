@@ -7,6 +7,7 @@ import { scrapeSiteDeep, flattenScrape } from '@/lib/scraper';
 import { analyzeSite, type SiteAnalysis } from '@/lib/siteAnalysis';
 import { firstStageId, stageIdByType } from '@/lib/pipeline';
 import { scheduleFirstFollowup } from '@/lib/followup';
+import { upsertCompanyByName, upsertContactByPhone } from '@/lib/crm';
 
 type ProspectInput = {
   nome_empresa: string;
@@ -60,6 +61,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Payload incompleto' }, { status: 400 });
     }
     const initStage = await firstStageId(s.tenantId);
+
+    const company = await upsertCompanyByName(s.tenantId, p.nome_empresa, {
+      site: p.site_empresa ?? null,
+      segmento: p.especialidades ?? null,
+    });
+    const contact = await upsertContactByPhone(s.tenantId, p.telefone, {
+      firstName: p.first_name ?? null,
+      companyId: company.id,
+    });
+
     lead = await prisma.lead.upsert({
       where: { tenantId_telefone: { tenantId: s.tenantId, telefone: p.telefone } },
       create: {
@@ -73,6 +84,8 @@ export async function POST(req: NextRequest) {
         site: p.site_empresa ?? null,
         hasWhatsapp: p.has_whatsapp ?? null,
         contexto: p.contexto ?? null,
+        contactId: contact.id,
+        companyId: company.id,
         origem: 'prospect',
         stageId: initStage,
       },
@@ -82,6 +95,8 @@ export async function POST(req: NextRequest) {
         especialidades: p.especialidades ?? undefined,
         site: p.site_empresa ?? undefined,
         contexto: p.contexto ?? undefined,
+        contactId: contact.id,
+        companyId: company.id,
       },
     });
   }

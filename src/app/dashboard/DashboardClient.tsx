@@ -507,7 +507,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
               <NavItem
                 active={tab === 'leads'}
                 onClick={() => setTab('leads')}
-                label="Leads"
+                label="Oportunidades"
                 icon={<IconList />}
                 badge={pendingCount > 0 ? String(pendingCount) : undefined}
               />
@@ -517,6 +517,9 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
                 label="Pipeline"
                 icon={<IconBoard />}
               />
+              <NavLink href="/dashboard/contacts" label="Contatos" icon={<IconList />} />
+              <NavLink href="/dashboard/companies" label="Empresas" icon={<IconList />} />
+              <NavLink href="/dashboard/followups" label="Follow-ups" icon={<IconList />} />
             </div>
           </div>
 
@@ -665,7 +668,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
 
         {tab === 'leads' && (
           <PageShell
-            title="Leads"
+            title="Oportunidades"
             subtitle="Base completa. Importe via CSV, crie manualmente ou adicione via busca."
             actions={
               <>
@@ -1215,6 +1218,15 @@ function NavItem({
         <span className="chip chip--accent !py-0">{badge}</span>
       )}
     </button>
+  );
+}
+
+function NavLink({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
+  return (
+    <a href={href} className="nav-item w-full">
+      <span className="nav-icon">{icon}</span>
+      <span className="flex-1 text-left">{label}</span>
+    </a>
   );
 }
 

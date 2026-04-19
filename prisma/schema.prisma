@@ -39,6 +39,8 @@ model Tenant {
   knowledgeDocs    KnowledgeDoc[]
   followupConfig   FollowupConfig?
   tags             Tag[]
+  companies        Company[]
+  contacts         Contact[]
 
   @@map("prospector_tenants")
 }
@@ -109,6 +111,10 @@ model Lead {
   ultimaMensagem String?  @map("ultima_mensagem")
   stageId        String?  @map("stage_id") @db.Uuid
   stage          Stage?   @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  contactId      String?  @map("contact_id") @db.Uuid
+  contact        Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  companyId      String?  @map("company_id") @db.Uuid
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   respondeu      Boolean  @default(false)
   respondeuEm    DateTime? @map("respondeu_em")
   ultimaResposta String?  @map("ultima_resposta")
@@ -137,7 +143,51 @@ model Lead {
   @@index([tenantId, isDraft])
   @@index([tenantId, interestScore(sort: Desc)])
   @@index([stageId])
+  @@index([contactId])
+  @@index([companyId])
   @@map("prospector_leads")
+}
+
+model Company {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome         String   @db.VarChar(255)
+  site         String?  @db.VarChar(500)
+  segmento     String?  @db.VarChar(120)
+  siteScrape   String?  @map("site_scrape")
+  siteAnalysis Json?    @map("site_analysis")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  contacts     Contact[]
+  leads        Lead[]
+
+  @@unique([tenantId, nome])
+  @@index([tenantId])
+  @@map("prospector_companies")
+}
+
+model Contact {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firstName  String?  @map("first_name") @db.VarChar(100)
+  lastName   String?  @map("last_name") @db.VarChar(100)
+  email      String?  @db.VarChar(255)
+  phone      String?  @db.VarChar(20)
+  role       String?  @db.VarChar(120)
+  companyId  String?  @map("company_id") @db.Uuid
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  leads      Lead[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@index([companyId])
+  @@map("prospector_contacts")
 }
 
 model FollowupConfig {

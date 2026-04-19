@@ -56,6 +56,8 @@ type Lead = {
   followupManuallyPaused?: boolean;
   interested?: boolean;
   tags?: LeadTag[];
+  contact?: { id: string; firstName: string | null; lastName: string | null; phone: string | null } | null;
+  company?: { id: string; nome: string } | null;
 };
 
 type Props = {
@@ -350,12 +352,16 @@ function LeadCard({
       </div>
 
       <div className="mt-1.5 text-[13px] font-semibold truncate text-[var(--text)] tracking-tight">
-        {lead.empresa ?? lead.firstName ?? '—'}
+        {lead.company?.nome ?? lead.empresa ?? lead.contact?.firstName ?? lead.firstName ?? '—'}
       </div>
-      {lead.firstName && lead.empresa && (
-        <div className="text-[11px] text-[var(--text-muted)] truncate">{lead.firstName}</div>
+      {(lead.contact?.firstName ?? lead.firstName) && (lead.company?.nome ?? lead.empresa) && (
+        <div className="text-[11px] text-[var(--text-muted)] truncate">
+          {lead.contact?.firstName ?? lead.firstName}
+        </div>
       )}
-      <div className="text-[11px] font-mono text-[var(--text-muted)] truncate">{lead.telefone}</div>
+      <div className="text-[11px] font-mono text-[var(--text-muted)] truncate">
+        {lead.contact?.phone ?? lead.telefone}
+      </div>
 
       {!lead.isDraft && (
         <div className="mt-2 flex items-center gap-2">

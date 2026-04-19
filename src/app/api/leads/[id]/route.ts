@@ -43,6 +43,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Params }) {
   if (body.contexto !== undefined) data.contexto = String(body.contexto).trim() || null;
   if (body.especialidades !== undefined)
     data.especialidades = String(body.especialidades).trim() || null;
+  if (body.contactId !== undefined) data.contactId = body.contactId ? String(body.contactId) : null;
+  if (body.companyId !== undefined) data.companyId = body.companyId ? String(body.companyId) : null;
   if (body.interested !== undefined) {
     const willInterest = !!body.interested;
     data.interested = willInterest;

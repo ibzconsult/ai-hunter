@@ -129,9 +129,13 @@ export async function recomputeScore(
       firstName: true,
       interestUpdatedAt: true,
       interested: true,
+      contact: { select: { firstName: true } },
+      company: { select: { nome: true } },
     },
   });
   if (!lead) return null;
+  const effectiveEmpresa = lead.company?.nome ?? lead.empresa;
+  const effectiveFirstName = lead.contact?.firstName ?? lead.firstName;
 
   if (
     !opts.force &&
@@ -153,7 +157,11 @@ export async function recomputeScore(
 
   const { sum, signals } = extractSignals(messages);
   const ai = tenant?.openaiApiKey
-    ? await aiReviewScore(tenant.openaiApiKey, lead, messages)
+    ? await aiReviewScore(
+        tenant.openaiApiKey,
+        { empresa: effectiveEmpresa, firstName: effectiveFirstName },
+        messages
+      )
     : null;
 
   // Combina: média ponderada 60% IA + 40% sinais (se IA disponível). Se não, só sinais.
