@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from './lib/auth';
 
 const PUBLIC_PATHS = ['/login', '/register'];
-const PUBLIC_API_PREFIXES = ['/api/auth/login', '/api/auth/register'];
+const PUBLIC_API_PREFIXES = [
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/webhooks/',
+  '/api/cron/',
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -6,6 +6,7 @@ import { generateMessages } from '@/lib/openai';
 import { scrapeSiteDeep, flattenScrape } from '@/lib/scraper';
 import { analyzeSite, type SiteAnalysis } from '@/lib/siteAnalysis';
 import { firstStageId, stageIdByType } from '@/lib/pipeline';
+import { scheduleFirstFollowup } from '@/lib/followup';
 
 type ProspectInput = {
   nome_empresa: string;
@@ -170,9 +171,12 @@ export async function POST(req: NextRequest) {
       data: {
         disparo: 'sim',
         ultimaMensagem: fullMessage,
+        lastInteractionAt: new Date(),
         ...(shouldMoveStage ? { stageId: contactedStage } : {}),
       },
     });
+
+    await scheduleFirstFollowup(lead.id).catch(() => {});
 
     return NextResponse.json({ success: true, messages, lead_id: lead.id });
   } catch (e) {

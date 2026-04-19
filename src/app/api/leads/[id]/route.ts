@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { normalizePhone as normalize } from '@/lib/phone';
+import { computeNextFollowupAt } from '@/lib/followup';
 
 type Params = Promise<{ id: string }>;
 
@@ -42,6 +43,24 @@ export async function PATCH(req: NextRequest, ctx: { params: Params }) {
   if (body.contexto !== undefined) data.contexto = String(body.contexto).trim() || null;
   if (body.especialidades !== undefined)
     data.especialidades = String(body.especialidades).trim() || null;
+  if (body.interested !== undefined) {
+    const willInterest = !!body.interested;
+    data.interested = willInterest;
+    if (willInterest) {
+      data.nextFollowupAt = null;
+      data.interestScore = 100;
+      data.interestBand = 'interested';
+      data.interestUpdatedAt = new Date();
+    } else if (existing.interested) {
+      const cfg = await prisma.followupConfig.findUnique({
+        where: { tenantId: s.tenantId },
+        include: { steps: { orderBy: { order: 'asc' } } },
+      });
+      if (cfg && cfg.enabled && existing.followupCount < cfg.maxCount) {
+        data.nextFollowupAt = computeNextFollowupAt(cfg, existing.followupCount);
+      }
+    }
+  }
 
   if (phone && phone !== existing.telefone) {
     const dup = await prisma.lead.findFirst({

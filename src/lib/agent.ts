@@ -86,7 +86,12 @@ const TOOLS = [
   },
 ];
 
-function buildSystemPrompt(tenant: Tenant, lead: Lead, docs: KnowledgeDoc[]): string {
+function buildSystemPrompt(
+  tenant: Tenant,
+  lead: Lead,
+  docs: KnowledgeDoc[],
+  mode: 'inbound_first' | 'continuation'
+): string {
   const persona = tenant.agentPersona?.trim() || `Você representa ${tenant.nomeEmpresa}. Tom: ${tenant.tomAbordagem}.`;
   const kbBlock = docs.length
     ? docs
@@ -98,9 +103,22 @@ function buildSystemPrompt(tenant: Tenant, lead: Lead, docs: KnowledgeDoc[]): st
         .join('\n')
     : '(nenhum documento cadastrado)';
 
+  const modeBlock =
+    mode === 'inbound_first'
+      ? `Esta é a PRIMEIRA mensagem do lead — ele(a) procurou sua empresa (inbound). Você ainda não sabe nada sobre o negócio dele(a). Sua missão nesta rodada:
+1. Cumprimentar de forma natural.
+2. Se a empresa tem "inboundGreeting" configurado, siga aquele tom como abertura.
+3. Apresentar ${tenant.nomeEmpresa} em UMA frase curta (quem somos, o que fazemos).
+4. Fazer 1 pergunta qualificadora pra entender o que levou o lead até você (ex: "posso perguntar o que te trouxe aqui?" ou "conta rapidinho o que você tá buscando?").
+5. NÃO empurre venda nem preço agora — primeiro entender a dor.
+6. Só chame notifyOwner se o lead já pediu explicitamente "quero fechar", "quero contratar" ou passou dado claro de urgência.
+
+${tenant.inboundGreeting ? `Referência de abertura do usuário: "${tenant.inboundGreeting}"` : ''}`
+      : `Você está dando continuidade a uma conversa que JÁ COMEÇOU. O lead acabou de responder. Sua tarefa: continuar de forma natural — não bot, não vendedor empolgado.`;
+
   return `${persona}
 
-Você é um agente conversacional no WhatsApp continuando uma conversa que JÁ COMEÇOU com um lead frio. O lead acabou de responder. Sua tarefa: dar continuidade de forma natural — não bot, não vendedor empolgado.
+${modeBlock}
 
 ## SOBRE A EMPRESA
 - Nome: ${tenant.nomeEmpresa}
@@ -184,6 +202,7 @@ export async function runAgentTurn(
   instance: Instance,
   incomingText: string
 ): Promise<AgentResult> {
+  if (lead.isDraft) return { replies: [], toolsUsed: [] };
   if (!tenant.openaiApiKey) throw new Error('OpenAI key ausente');
   if (!instance.instanceToken) throw new Error('Instance sem token');
   if (!lead.telefone) throw new Error('Lead sem telefone');
@@ -199,8 +218,13 @@ export async function runAgentTurn(
     prisma.knowledgeDoc.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: 'asc' } }),
   ]);
 
+  const hasPriorOut = history.some((h) => h.direction === 'out');
+  const mode: 'inbound_first' | 'continuation' = !hasPriorOut && lead.origem === 'inbound'
+    ? 'inbound_first'
+    : 'continuation';
+
   const messages: ChatMessage[] = [
-    { role: 'system', content: buildSystemPrompt(tenant, lead, docs) },
+    { role: 'system', content: buildSystemPrompt(tenant, lead, docs, mode) },
     ...loadHistory(history),
     { role: 'user', content: incomingText },
   ];
@@ -281,7 +305,16 @@ export async function runAgentTurn(
           } else {
             const alert = `🔔 Lead interessado: ${lead.empresa ?? lead.firstName ?? lead.telefone}\nMotivo: ${reason}\nResumo: ${summary}`;
             await sendText(token, tenant.notificationPhone, alert);
-            await prisma.lead.update({ where: { id: lead.id }, data: { interested: true } });
+            await prisma.lead.update({
+              where: { id: lead.id },
+              data: {
+                interested: true,
+                interestScore: 100,
+                interestBand: 'interested',
+                interestUpdatedAt: new Date(),
+                nextFollowupAt: null,
+              },
+            });
             await prisma.message.create({
               data: {
                 tenantId: tenant.id,

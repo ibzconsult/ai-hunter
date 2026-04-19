@@ -29,6 +29,8 @@ type SiteAnalysis = {
   confianca: number;
 };
 
+type LeadTag = { id: string; nome: string; color: string };
+
 type Lead = {
   id: string;
   empresa: string | null;
@@ -45,6 +47,15 @@ type Lead = {
   ultimaResposta: string | null;
   siteAnalysis: SiteAnalysis | null;
   createdAt: string;
+  isDraft?: boolean;
+  interestScore?: number;
+  interestBand?: 'cold' | 'warm' | 'hot' | 'interested';
+  followupCount?: number;
+  nextFollowupAt?: string | null;
+  lastInteractionAt?: string | null;
+  followupManuallyPaused?: boolean;
+  interested?: boolean;
+  tags?: LeadTag[];
 };
 
 type Props = {
@@ -244,6 +255,46 @@ export default function PipelineView({ leads, onLeadMoved, onLeadClick, onLeadsC
   );
 }
 
+const ORIGIN_COLOR: Record<string, string> = {
+  inbound: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  outbound: 'bg-blue-100 text-blue-700 border-blue-200',
+  manual: 'bg-slate-100 text-slate-700 border-slate-200',
+  indication: 'bg-purple-100 text-purple-700 border-purple-200',
+};
+
+const BAND_COLOR: Record<string, string> = {
+  cold: '#94a3b8',
+  warm: '#f59e0b',
+  hot: '#ef4444',
+  interested: '#10b981',
+};
+
+function relativeTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso).getTime();
+  if (Number.isNaN(d)) return null;
+  const diff = Date.now() - d;
+  const min = Math.round(diff / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `${min}min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h}h`;
+  const dd = Math.round(h / 24);
+  return `${dd}d`;
+}
+
+function futureLabel(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso).getTime();
+  if (Number.isNaN(d)) return null;
+  const diff = d - Date.now();
+  if (diff <= 0) return 'agora';
+  const h = Math.round(diff / 3600000);
+  if (h < 24) return `em ${h}h`;
+  const dd = Math.round(h / 24);
+  return `em ${dd}d`;
+}
+
 function LeadCard({
   lead,
   onDragStart,
@@ -255,51 +306,83 @@ function LeadCard({
   onDragEnd: () => void;
   onClick: () => void;
 }) {
+  const band = lead.interestBand ?? 'cold';
+  const score = lead.interestScore ?? 0;
+  const originKey = lead.origem ?? 'manual';
+  const originClass = ORIGIN_COLOR[originKey] ?? ORIGIN_COLOR.manual;
+  const lastRel = relativeTime(lead.lastInteractionAt);
+  const nextFwLabel = lead.nextFollowupAt ? futureLabel(lead.nextFollowupAt) : null;
+
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
-      className="group rounded-md bg-white border border-[var(--line)] px-3 py-2.5 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-[var(--line-strong)] transition-all"
+      className={`group rounded-md bg-white border px-3 py-2.5 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-[var(--line-strong)] transition-all ${
+        lead.isDraft ? 'border-amber-300' : 'border-[var(--line)]'
+      }`}
       style={{ boxShadow: 'var(--shadow-xs)' }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold truncate text-[var(--text)] tracking-tight">
-            {lead.empresa ?? lead.firstName ?? '—'}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className={`text-[9px] uppercase tracking-wider font-semibold border rounded-full px-1.5 py-[1px] ${originClass}`}>
+          {originKey}
+        </span>
+        {lead.isDraft && (
+          <span className="text-[9px] uppercase tracking-wider font-semibold border rounded-full px-1.5 py-[1px] bg-amber-100 text-amber-700 border-amber-300">
+            triagem
+          </span>
+        )}
+        {lead.followupManuallyPaused && (
+          <span className="text-[9px] uppercase tracking-wider font-semibold border rounded-full px-1.5 py-[1px] bg-slate-200 text-slate-700 border-slate-300">
+            pausado
+          </span>
+        )}
+        {lead.tags?.slice(0, 3).map((t) => (
+          <span
+            key={t.id}
+            className="text-[9px] font-medium border rounded-full px-1.5 py-[1px]"
+            style={{ color: t.color, borderColor: t.color, backgroundColor: `${t.color}15` }}
+          >
+            {t.nome}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-1.5 text-[13px] font-semibold truncate text-[var(--text)] tracking-tight">
+        {lead.empresa ?? lead.firstName ?? '—'}
+      </div>
+      {lead.firstName && lead.empresa && (
+        <div className="text-[11px] text-[var(--text-muted)] truncate">{lead.firstName}</div>
+      )}
+      <div className="text-[11px] font-mono text-[var(--text-muted)] truncate">{lead.telefone}</div>
+
+      {!lead.isDraft && (
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${Math.max(2, score)}%`, backgroundColor: BAND_COLOR[band] }}
+            />
           </div>
-          {lead.firstName && lead.empresa && (
-            <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">
-              {lead.firstName}
-            </div>
-          )}
-        </div>
-        <div className="opacity-0 group-hover:opacity-100 text-[var(--text-faint)] transition-opacity">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-            <circle cx="5" cy="4" r="1" fill="currentColor" />
-            <circle cx="5" cy="8" r="1" fill="currentColor" />
-            <circle cx="5" cy="12" r="1" fill="currentColor" />
-            <circle cx="11" cy="4" r="1" fill="currentColor" />
-            <circle cx="11" cy="8" r="1" fill="currentColor" />
-            <circle cx="11" cy="12" r="1" fill="currentColor" />
-          </svg>
-        </div>
-      </div>
-      <div className="text-[11px] font-mono text-[var(--text-muted)] mt-1 truncate">
-        {lead.telefone}
-      </div>
-      {(lead.respondeu || lead.classificacao === 'autoresponder' || lead.disparo === 'sim') && (
-        <div className="flex gap-1 mt-2 flex-wrap">
-          {lead.respondeu && <span className="chip chip--success !text-[9px]">respondeu</span>}
-          {lead.classificacao === 'autoresponder' && !lead.respondeu && (
-            <span className="chip !text-[9px]">auto</span>
-          )}
-          {lead.disparo === 'sim' && !lead.respondeu && (
-            <span className="chip chip--accent !text-[9px]">enviado</span>
-          )}
+          <span className="text-[10px] font-mono text-[var(--text-muted)] tabular-nums w-6 text-right">
+            {score}
+          </span>
         </div>
       )}
+
+      <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-[var(--text-muted)]">
+        <span className="truncate">
+          {lead.respondeu ? '💬 ' : '⏳ '}
+          {lastRel ? `há ${lastRel}` : 'sem atividade'}
+        </span>
+        {nextFwLabel && !lead.isDraft && (
+          <span className="truncate">
+            🔁 {nextFwLabel}
+            {lead.followupCount != null ? ` (${lead.followupCount})` : ''}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

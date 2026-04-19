@@ -28,7 +28,9 @@ export async function POST(req: NextRequest) {
       empresa: body.empresa ? String(body.empresa).trim() || null : null,
       site: body.site ? String(body.site).trim() || null : null,
       contexto: body.contexto ? String(body.contexto).trim() || null : null,
-      origem: 'manual',
+      origem: ['manual', 'inbound', 'outbound', 'indication'].includes(String(body.origem))
+        ? String(body.origem)
+        : 'manual',
       stageId,
     },
   });
@@ -43,7 +45,7 @@ export async function GET(req: NextRequest) {
   const status = url.searchParams.get('status');
   const origem = url.searchParams.get('origem');
 
-  const leads = await prisma.lead.findMany({
+  const rows = await prisma.lead.findMany({
     where: {
       tenantId: s.tenantId,
       ...(status ? { disparo: status } : {}),
@@ -51,7 +53,12 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { createdAt: 'desc' },
     take: 500,
+    include: { tags: { include: { tag: true } } },
   });
+  const leads = rows.map((l) => ({
+    ...l,
+    tags: l.tags.map((lt) => ({ id: lt.tag.id, nome: lt.tag.nome, color: lt.tag.color })),
+  }));
   return NextResponse.json({ success: true, leads });
 }
 

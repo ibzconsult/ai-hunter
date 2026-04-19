@@ -24,6 +24,7 @@ model Tenant {
   cumprimento1     String?    @map("cumprimento_1")
   cumprimento2     String?    @map("cumprimento_2")
   cumprimento3     String?    @map("cumprimento_3")
+  inboundGreeting  String?    @map("inbound_greeting")
   openaiApiKey     String?    @map("openai_api_key") @db.VarChar(255)
   serpapiKey       String?    @map("serpapi_key") @db.VarChar(255)
   notificationPhone String?   @map("notification_phone") @db.VarChar(20)
@@ -36,6 +37,8 @@ model Tenant {
   pipelines        Pipeline[]
   messages         Message[]
   knowledgeDocs    KnowledgeDoc[]
+  followupConfig   FollowupConfig?
+  tags             Tag[]
 
   @@map("prospector_tenants")
 }
@@ -111,15 +114,89 @@ model Lead {
   ultimaResposta String?  @map("ultima_resposta")
   classificacao  String?  @db.VarChar(20)
   interested     Boolean  @default(false)
+  isDraft        Boolean  @default(false) @map("is_draft")
+  followupCount  Int      @default(0) @map("followup_count")
+  lastFollowupAt DateTime? @map("last_followup_at")
+  nextFollowupAt DateTime? @map("next_followup_at")
+  followupPausedUntil DateTime? @map("followup_paused_until")
+  followupManuallyPaused Boolean @default(false) @map("followup_manually_paused")
+  interestScore  Int      @default(0) @map("interest_score")
+  interestBand   String   @default("cold") @map("interest_band") @db.VarChar(20)
+  interestSignals Json?   @map("interest_signals")
+  interestUpdatedAt DateTime? @map("interest_updated_at")
+  lastInteractionAt DateTime? @map("last_interaction_at")
   createdAt      DateTime @default(now()) @map("created_at")
   messages       Message[]
+  tags           LeadTag[]
 
   @@unique([tenantId, telefone])
   @@index([tenantId])
   @@index([tenantId, disparo])
   @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, nextFollowupAt])
+  @@index([tenantId, isDraft])
+  @@index([tenantId, interestScore(sort: Desc)])
   @@index([stageId])
   @@map("prospector_leads")
+}
+
+model FollowupConfig {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @unique @map("tenant_id") @db.Uuid
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enabled           Boolean  @default(false)
+  maxCount          Int      @default(4) @map("max_count")
+  windowStart       String   @default("09:00") @map("window_start") @db.VarChar(5)
+  windowEnd         String   @default("18:00") @map("window_end") @db.VarChar(5)
+  activeDays        Int[]    @default([1, 2, 3, 4, 5]) @map("active_days")
+  timezone          String   @default("America/Sao_Paulo") @db.VarChar(64)
+  pauseOnReplyHours Int      @default(48) @map("pause_on_reply_hours")
+  instanceId        String?  @map("instance_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  steps             FollowupStep[]
+
+  @@map("prospector_followup_configs")
+}
+
+model FollowupStep {
+  id         String   @id @default(uuid()) @db.Uuid
+  configId   String   @map("config_id") @db.Uuid
+  config     FollowupConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  order      Int
+  delayDays  Int      @map("delay_days")
+  type       String   @db.VarChar(30)
+  customHint String?  @map("custom_hint")
+  docId      String?  @map("doc_id") @db.Uuid
+
+  @@unique([configId, order])
+  @@map("prospector_followup_steps")
+}
+
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome      String   @db.VarChar(60)
+  color     String   @default("#64748b") @db.VarChar(9)
+  createdAt DateTime @default(now()) @map("created_at")
+  leads     LeadTag[]
+
+  @@unique([tenantId, nome])
+  @@index([tenantId])
+  @@map("prospector_tags")
+}
+
+model LeadTag {
+  leadId    String   @map("lead_id") @db.Uuid
+  tagId     String   @map("tag_id") @db.Uuid
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([leadId, tagId])
+  @@index([tagId])
+  @@map("prospector_lead_tags")
 }
 
 model Message {

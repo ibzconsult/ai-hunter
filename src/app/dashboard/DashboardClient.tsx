@@ -48,6 +48,8 @@ type SiteAnalysis = {
   confianca: number;
 };
 
+type LeadTag = { id: string; nome: string; color: string };
+
 type Lead = {
   id: string;
   empresa: string | null;
@@ -64,6 +66,18 @@ type Lead = {
   ultimaResposta: string | null;
   siteAnalysis: SiteAnalysis | null;
   createdAt: string;
+  isDraft?: boolean;
+  interestScore?: number;
+  interestBand?: 'cold' | 'warm' | 'hot' | 'interested';
+  interestSignals?: Array<{ type: string; weight: number; matchedAt: string; excerpt: string }> | null;
+  followupCount?: number;
+  lastFollowupAt?: string | null;
+  nextFollowupAt?: string | null;
+  followupPausedUntil?: string | null;
+  followupManuallyPaused?: boolean;
+  interested?: boolean;
+  lastInteractionAt?: string | null;
+  tags?: LeadTag[];
 };
 
 type ProspectRow = {
@@ -1128,12 +1142,14 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
               : { firstName: '', empresa: '', telefone: '', site: '', contexto: '' }
           }
           analysis={modal.mode === 'edit' ? modal.lead.siteAnalysis ?? null : null}
+          lead={modal.mode === 'edit' ? modal.lead : null}
           leadId={modal.mode === 'edit' ? modal.lead.id : null}
           title={modal.mode === 'edit' ? 'Editar lead' : 'Novo lead'}
           cta={modal.mode === 'edit' ? 'Salvar' : 'Criar lead'}
           error={modalErr}
           onClose={() => setModal({ mode: 'closed' })}
           onSave={saveLeadForm}
+          onAction={loadLeads}
         />
       )}
     </div>
@@ -1365,26 +1381,74 @@ function IconKey() {
 function LeadModal({
   initial,
   analysis,
+  lead,
   leadId,
   title,
   cta,
   error,
   onClose,
   onSave,
+  onAction,
 }: {
   initial: LeadFormValues;
   analysis?: SiteAnalysis | null;
+  lead?: Lead | null;
   leadId?: string | null;
   title: string;
   cta: string;
   error: string | null;
   onClose: () => void;
   onSave: (values: LeadFormValues) => Promise<void>;
+  onAction?: () => void;
 }) {
   const [form, setForm] = useState<LeadFormValues>(initial);
   const [saving, setSaving] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [tab, setTab] = useState<'edit' | 'conv'>('edit');
+  const [localLead, setLocalLead] = useState<Lead | null>(lead ?? null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+
+  const band = localLead?.interestBand ?? 'cold';
+  const score = localLead?.interestScore ?? 0;
+  const bandColors: Record<string, string> = {
+    cold: '#94a3b8',
+    warm: '#f59e0b',
+    hot: '#ef4444',
+    interested: '#10b981',
+  };
+
+  async function callLeadAction(action: string) {
+    if (!leadId || busyAction) return;
+    setBusyAction(action);
+    try {
+      let res: Response;
+      if (action === 'qualify' || action === 'discard') {
+        res = await fetch(`/api/leads/${leadId}/qualify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
+      } else if (action === 'pause') {
+        res = await fetch(`/api/followup/lead/${leadId}/pause`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+      } else if (action === 'recompute') {
+        res = await fetch(`/api/leads/${leadId}/score`, { method: 'POST' });
+      } else {
+        return;
+      }
+      const data = await res.json();
+      if (data?.lead) setLocalLead({ ...(localLead ?? {} as Lead), ...data.lead });
+      if (action === 'pause' && typeof data?.followupManuallyPaused === 'boolean' && localLead) {
+        setLocalLead({ ...localLead, followupManuallyPaused: data.followupManuallyPaused });
+      }
+      onAction?.();
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
   const set = <K extends keyof LeadFormValues>(k: K, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -1407,6 +1471,93 @@ function LeadModal({
             </svg>
           </button>
         </div>
+
+        {leadId && localLead && (
+          <div className="space-y-3 -mt-2">
+            {localLead.isDraft && (
+              <div className="rounded-md bg-amber-50 border border-amber-200 p-3 space-y-2">
+                <div className="text-xs text-amber-800 font-medium">Lead em triagem — qualifique ou descarte.</div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={busyAction !== null}
+                    onClick={() => callLeadAction('qualify')}
+                    className="btn-primary px-3 py-1.5 text-xs"
+                  >
+                    {busyAction === 'qualify' ? '…' : 'Qualificar'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyAction !== null}
+                    onClick={() => callLeadAction('discard')}
+                    className="btn-ghost px-3 py-1.5 text-xs"
+                  >
+                    {busyAction === 'discard' ? '…' : 'Descartar'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Interesse — {band}</span>
+                  <span className="text-xs font-mono tabular-nums">{score}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${Math.max(2, score)}%`, backgroundColor: bandColors[band] }}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={busyAction !== null}
+                onClick={() => callLeadAction('recompute')}
+                className="btn-ghost px-2 py-1 text-[11px]"
+                title="Recalcular score"
+              >
+                {busyAction === 'recompute' ? '…' : 'recalc'}
+              </button>
+            </div>
+
+            {!localLead.isDraft && (
+              <div className="flex items-center justify-between text-[11px] text-[var(--muted)] gap-3">
+                <span>Follow-ups: {localLead.followupCount ?? 0}</span>
+                {localLead.nextFollowupAt && (
+                  <span>próximo: {new Date(localLead.nextFollowupAt).toLocaleString('pt-BR')}</span>
+                )}
+                <button
+                  type="button"
+                  disabled={busyAction !== null}
+                  onClick={() => callLeadAction('pause')}
+                  className="btn-ghost px-2 py-1 text-[11px]"
+                >
+                  {busyAction === 'pause'
+                    ? '…'
+                    : localLead.followupManuallyPaused
+                      ? 'retomar'
+                      : 'pausar'}
+                </button>
+              </div>
+            )}
+
+            {Array.isArray(localLead.interestSignals) && localLead.interestSignals.length > 0 && (
+              <details className="text-[11px] text-[var(--muted)]">
+                <summary className="cursor-pointer">Últimos sinais ({localLead.interestSignals.length})</summary>
+                <ul className="mt-1.5 space-y-0.5 pl-3">
+                  {localLead.interestSignals.slice(-5).map((s, i) => (
+                    <li key={i}>
+                      <span className="font-mono">{s.weight > 0 ? '+' : ''}{s.weight}</span>{' '}
+                      <span className="font-medium">{s.type}</span> — {s.excerpt.slice(0, 60)}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
 
         {leadId && (
           <div className="flex gap-1 border-b border-[var(--line)] -mt-2">
