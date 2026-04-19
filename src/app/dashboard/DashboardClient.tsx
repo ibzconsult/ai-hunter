@@ -150,6 +150,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
 
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
+  const [maxPages, setMaxPages] = useState(5);
   const [prospects, setProspects] = useState<ProspectRow[]>([]);
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
   const [sending, setSending] = useState<Record<string, 'loading' | 'ok' | 'err'>>({});
@@ -259,7 +260,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, location, instance_id: selectedInstance }),
+        body: JSON.stringify({ query, location, instance_id: selectedInstance, maxPages }),
       });
       const data = await res.json();
       if (data.success) {
@@ -508,7 +509,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
             subtitle="Busca no Google Maps com filtro automático de WhatsApp ativo."
           >
             <div className="surface p-5 space-y-4">
-              <div className="grid md:grid-cols-[1fr_1fr_auto] gap-3">
+              <div className="grid md:grid-cols-[1fr_1fr_auto_auto] gap-3">
                 <FieldStacked label="Segmento">
                   <input
                     value={query}
@@ -526,6 +527,19 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
                     placeholder="Fortaleza, CE"
                     className="input-field"
                   />
+                </FieldStacked>
+                <FieldStacked label="Máx. resultados" hint="20 por página">
+                  <select
+                    value={maxPages}
+                    onChange={(e) => setMaxPages(Number(e.target.value))}
+                    className="input-field"
+                  >
+                    <option value={1}>20</option>
+                    <option value={2}>40</option>
+                    <option value={3}>60</option>
+                    <option value={5}>100</option>
+                    <option value={10}>200</option>
+                  </select>
                 </FieldStacked>
                 <div className="flex items-end">
                   <button

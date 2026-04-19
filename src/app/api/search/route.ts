@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
   const query = String(body.query ?? '').trim();
   const location = body.location ? String(body.location).trim() : undefined;
   const instanceId = body.instance_id ? String(body.instance_id) : undefined;
+  const maxPages = body.maxPages ? Number(body.maxPages) : undefined;
   if (!query) {
     return NextResponse.json({ success: false, error: 'Informe a busca' }, { status: 400 });
   }
@@ -42,7 +43,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const prospects = await searchProspects(tenant.serpapiKey, query, location);
+    const prospects = await searchProspects(tenant.serpapiKey, query, location, {
+      maxPages: maxPages,
+    });
     if (prospects.length === 0) {
       return NextResponse.json({ success: true, prospects: [], totalFound: 0, withWhatsapp: 0 });
     }
