@@ -64,11 +64,15 @@ export async function searchProspects(
     const locals = json.local_results ?? [];
     if (locals.length === 0) break;
 
+    let seenAllKeys = 0;
     const prevCount = prospects.length;
     for (const l of locals) {
       const phone = normalizePhone(l.phone);
       if (!phone || !l.title) continue;
-      if (seen.has(phone)) continue;
+      if (seen.has(phone)) {
+        seenAllKeys++;
+        continue;
+      }
       seen.add(phone);
       prospects.push({
         nomeEmpresa: l.title,
@@ -80,9 +84,9 @@ export async function searchProspects(
       });
     }
 
-    // Se a página trouxe menos que o tamanho esperado OU não adicionou nada
-    // novo (tudo duplicado), interrompe.
-    if (locals.length < PAGE_SIZE || prospects.length === prevCount) break;
+    // Só interrompe quando a página veio 100% duplicada (sinal de que o
+    // Google Maps começou a repetir os mesmos resultados).
+    if (prospects.length === prevCount && seenAllKeys > 0) break;
   }
 
   return prospects;
