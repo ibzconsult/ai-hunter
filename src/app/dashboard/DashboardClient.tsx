@@ -151,6 +151,7 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
   const [maxPages, setMaxPages] = useState(5);
+  const [hideSent, setHideSent] = useState(true);
   const [prospects, setProspects] = useState<ProspectRow[]>([]);
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
   const [sending, setSending] = useState<Record<string, 'loading' | 'ok' | 'err'>>({});
@@ -565,8 +566,27 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
             </div>
 
             {prospects.length > 0 && (
-              <ul className="space-y-1.5 mt-4">
-                {prospects.map((p) => {
+              <>
+                {(() => {
+                  const visible = hideSent ? prospects.filter((p) => !p.jaEnviado) : prospects;
+                  const sentCountInList = prospects.filter((p) => p.jaEnviado).length;
+                  return (
+                    <>
+                      <div className="flex items-center justify-between mt-4 mb-2">
+                        <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={hideSent}
+                            onChange={(e) => setHideSent(e.target.checked)}
+                          />
+                          Ocultar já disparados{sentCountInList > 0 ? ` (${sentCountInList})` : ''}
+                        </label>
+                        <span className="text-xs text-[var(--text-muted)] font-mono">
+                          {visible.length} de {prospects.length}
+                        </span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {visible.map((p) => {
                   const st = sending[p.telefone];
                   return (
                     <li
@@ -603,7 +623,11 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
                     </li>
                   );
                 })}
-              </ul>
+                      </ul>
+                    </>
+                  );
+                })()}
+              </>
             )}
           </PageShell>
         )}
