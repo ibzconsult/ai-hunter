@@ -27,14 +27,18 @@ export async function searchProspects(
 ): Promise<Prospect[]> {
   if (!apiKey) throw new Error('SerpAPI key ausente');
 
+  // SearchAPI google_maps responde melhor quando a localidade vem embutida na
+  // query. Passar só `location` frequentemente cai em São Paulo por default.
+  const trimmedLoc = location?.trim() ?? '';
+  const effectiveQ = trimmedLoc ? `${query} em ${trimmedLoc}` : query;
   const params = new URLSearchParams({
     engine: 'google_maps',
-    q: query,
+    q: effectiveQ,
     api_key: apiKey,
     hl: 'pt-br',
     gl: 'br',
   });
-  if (location) params.set('location', location);
+  if (trimmedLoc) params.set('location', trimmedLoc);
 
   const res = await fetch(`https://www.searchapi.io/api/v1/search?${params.toString()}`, {
     cache: 'no-store',
