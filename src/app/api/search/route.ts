@@ -4,6 +4,9 @@ import { getSession } from '@/lib/auth';
 import { searchProspects, expandSegmentQueries } from '@/lib/serpapi';
 import { checkWhatsApp, UazapiDisconnectedError } from '@/lib/uazapi';
 
+export const maxDuration = 26;
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   const s = await getSession();
   if (!s) return NextResponse.json({ success: false }, { status: 401 });
@@ -115,7 +118,8 @@ export async function POST(req: NextRequest) {
       queries,
     });
   } catch (e) {
-    const err = e instanceof Error ? e.message : 'Erro na busca';
+    const err = e instanceof Error && e.message ? e.message : 'Erro na busca';
+    console.error('[search]', err, e);
     return NextResponse.json({ success: false, error: err }, { status: 500 });
   }
 }
