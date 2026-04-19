@@ -9,6 +9,10 @@ import { firstStageId, stageIdByType } from '@/lib/pipeline';
 import { scheduleFirstFollowup } from '@/lib/followup';
 import { upsertCompanyByName, upsertContactByPhone } from '@/lib/crm';
 
+// Netlify Functions: estende o limite default de 10s. Em plano Pro alcança 26s.
+export const maxDuration = 26;
+export const runtime = 'nodejs';
+
 type ProspectInput = {
   nome_empresa: string;
   first_name?: string;
@@ -157,6 +161,10 @@ export async function POST(req: NextRequest) {
     );
     if (messages.length === 0) throw new Error('OpenAI retornou vazio');
 
+    // Cap total de tempo em ~12s pra caber dentro do limite de 26s da function
+    // (restante fica reservado pra scraping + OpenAI no início).
+    const startTs = Date.now();
+    const TOTAL_BUDGET_MS = 12000;
     for (let i = 0; i < messages.length; i++) {
       await sendText(instance.instanceToken, lead.telefone, messages[i]);
       await prisma.message.create({
@@ -168,9 +176,8 @@ export async function POST(req: NextRequest) {
           toolCalled: 'dispatch',
         },
       });
-      if (i < messages.length - 1) {
-        const delayMs = 3000 + Math.random() * 2000; // 3-5s
-        await new Promise((r) => setTimeout(r, delayMs));
+      if (i < messages.length - 1 && Date.now() - startTs < TOTAL_BUDGET_MS) {
+        await new Promise((r) => setTimeout(r, 1500 + Math.random() * 1000)); // 1.5-2.5s
       }
     }
 
