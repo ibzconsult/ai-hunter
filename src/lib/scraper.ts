@@ -188,7 +188,7 @@ export async function scrapeSiteDeep(
     return { url: url ?? '', pages: [], contacts: { emails: [], phones: [], whatsapp: [] }, socials: {}, totalChars: 0 };
   }
 
-  const homeHtml = await fetchHtml(normalized, 8000);
+  const homeHtml = await fetchHtml(normalized, perPageTimeoutMs);
   if (!homeHtml) {
     return { url: normalized, pages: [], contacts: { emails: [], phones: [], whatsapp: [] }, socials: {}, totalChars: 0 };
   }

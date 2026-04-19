@@ -119,12 +119,15 @@ export async function analyzeSite(
     temperature: 0.2,
   };
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       cache: 'no-store',
+      signal: controller.signal,
     });
     if (!res.ok) return null;
     const json = await res.json();
@@ -132,5 +135,7 @@ export async function analyzeSite(
     return sanitize(JSON.parse(content));
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }

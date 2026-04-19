@@ -123,20 +123,31 @@ export async function POST(req: NextRequest) {
     let siteAnalysis = (lead.siteAnalysis as SiteAnalysis | null) ?? null;
 
     if (lead.site && !siteAnalysis) {
-      const scrape = await scrapeSiteDeep(lead.site);
-      if (scrape.pages.length) {
-        siteScrape = flattenScrape(scrape, 15000);
-        siteAnalysis = await analyzeSite(tenant.openaiApiKey, scrape, {
-          especialidades: lead.especialidades ?? undefined,
-          empresa: lead.empresa ?? undefined,
+      // Scraping conservador pra caber no limite de 26s do Netlify Lambda:
+      // 2 páginas, 4s por request, total máximo ~8s.
+      try {
+        const scrape = await scrapeSiteDeep(lead.site, {
+          maxPages: 2,
+          perPageTimeoutMs: 4000,
+          maxCharsTotal: 8000,
         });
-        await prisma.lead.update({
-          where: { id: lead.id },
-          data: {
-            siteScrape,
-            ...(siteAnalysis ? { siteAnalysis: siteAnalysis as unknown as object } : {}),
-          },
-        });
+        if (scrape.pages.length) {
+          siteScrape = flattenScrape(scrape, 8000);
+          siteAnalysis = await analyzeSite(tenant.openaiApiKey, scrape, {
+            especialidades: lead.especialidades ?? undefined,
+            empresa: lead.empresa ?? undefined,
+          });
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              siteScrape,
+              ...(siteAnalysis ? { siteAnalysis: siteAnalysis as unknown as object } : {}),
+            },
+          });
+        }
+      } catch (e) {
+        // Scraping é melhor-esforço: se falhar, segue sem análise.
+        console.warn('[dispatch:scrape]', e instanceof Error ? e.message : e);
       }
     }
 
