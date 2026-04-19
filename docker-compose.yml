@@ -1,0 +1,40 @@
+# Docker Compose stack pro AI Hunter na VPS Hetzner do ibusiness.
+# Assume que Traefik já está rodando na VPS com um network externo chamado
+# `traefik-public` (padrão comum). Se o network for outro nome, ajuste abaixo.
+#
+# Deploy:
+#   docker compose up -d --build
+#
+# Logs:
+#   docker compose logs -f ai-hunter
+
+version: '3.8'
+
+services:
+  ai-hunter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-hunter:latest
+    container_name: ai-hunter
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+
+      # Router HTTPS
+      - "traefik.http.routers.aihunter.rule=Host(`ai-hunter.ibusiness.ia.br`)"
+      - "traefik.http.routers.aihunter.entrypoints=websecure"
+      - "traefik.http.routers.aihunter.tls=true"
+      - "traefik.http.routers.aihunter.tls.certresolver=letsencrypt"
+
+      # Service / port
+      - "traefik.http.services.aihunter.loadbalancer.server.port=3000"
+
+networks:
+  traefik-public:
+    external: true
