@@ -10,20 +10,56 @@ export class UazapiDisconnectedError extends Error {
   }
 }
 
+const TIMEOUT_MS = 30_000;
+const RETRY_STATUSES = new Set([502, 504, 408, 429]);
+const RETRY_DELAYS_MS = [1_000, 3_000];
+
+function wait(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function call<T = Json>(path: string, init: RequestInit): Promise<T> {
-  const res = await fetch(`${UAZAPI_URL}${path}`, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 503 || /whatsapp\s+disconnected/i.test(text)) {
-      throw new UazapiDisconnectedError();
+  let lastError: unknown = null;
+  const attempts = RETRY_DELAYS_MS.length + 1;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(`${UAZAPI_URL}${path}`, {
+        ...init,
+        headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      if (res.ok) return (await res.json()) as T;
+
+      const text = await res.text();
+      if (res.status === 503 || /whatsapp\s+disconnected/i.test(text)) {
+        throw new UazapiDisconnectedError();
+      }
+      if (RETRY_STATUSES.has(res.status) && attempt < attempts - 1) {
+        lastError = new Error(`Uazapi ${path} ${res.status}: ${text.slice(0, 200)}`);
+        await wait(RETRY_DELAYS_MS[attempt]);
+        continue;
+      }
+      throw new Error(`Uazapi ${path} ${res.status}: ${text.slice(0, 200)}`);
+    } catch (e) {
+      clearTimeout(timer);
+      if (e instanceof UazapiDisconnectedError) throw e;
+      const isAbort = e instanceof Error && e.name === 'AbortError';
+      const isNetwork = e instanceof TypeError;
+      if ((isAbort || isNetwork) && attempt < attempts - 1) {
+        lastError = e;
+        await wait(RETRY_DELAYS_MS[attempt]);
+        continue;
+      }
+      throw e;
     }
-    throw new Error(`Uazapi ${path} ${res.status}: ${text.slice(0, 200)}`);
   }
-  return res.json() as Promise<T>;
+  throw lastError instanceof Error ? lastError : new Error(`Uazapi ${path} falhou`);
 }
 
 export async function initInstance(name: string) {
