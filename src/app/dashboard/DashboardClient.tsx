@@ -2062,6 +2062,8 @@ function KnowledgeManager() {
   const [docs, setDocs] = useState<KnowledgeDocItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedName, setUploadedName] = useState<string | null>(null);
   const [draft, setDraft] = useState({ titulo: '', descricao: '', conteudoTexto: '', fileUrl: '', fileType: '', sendable: true });
 
   useEffect(() => {
@@ -2084,11 +2086,35 @@ function KnowledgeManager() {
       if (d.success) {
         setDocs((arr) => [...arr, d.doc]);
         setDraft({ titulo: '', descricao: '', conteudoTexto: '', fileUrl: '', fileType: '', sendable: true });
+        setUploadedName(null);
       } else {
         alert(d.error ?? 'Erro');
       }
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/knowledge/upload', { method: 'POST', body: fd });
+      const d = await res.json();
+      if (d.success) {
+        setDraft((prev) => ({
+          ...prev,
+          fileUrl: d.fileUrl,
+          fileType: d.fileType,
+          titulo: prev.titulo || d.originalName.replace(/\.[^.]+$/, ''),
+        }));
+        setUploadedName(d.originalName);
+      } else {
+        alert(d.error ?? 'Falha no upload');
+      }
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -2169,24 +2195,50 @@ function KnowledgeManager() {
           placeholder="Conteúdo em texto que o agente pode citar (opcional)"
           className="input-field text-sm"
         />
-        <div className="flex gap-2">
-          <input
-            value={draft.fileUrl}
-            onChange={(e) => setDraft((d) => ({ ...d, fileUrl: e.target.value }))}
-            placeholder="URL pública do arquivo (PDF/imagem)"
-            className="input-field text-sm flex-1"
-          />
-          <select
-            value={draft.fileType}
-            onChange={(e) => setDraft((d) => ({ ...d, fileType: e.target.value }))}
-            className="input-field text-sm w-32"
-          >
-            <option value="">tipo</option>
-            <option value="document">document</option>
-            <option value="image">image</option>
-            <option value="video">video</option>
-            <option value="audio">audio</option>
-          </select>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs cursor-pointer border border-dashed border-[var(--line)] rounded-md px-3 py-2 hover:bg-[var(--bg-soft)]">
+            <input
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleUpload(f);
+                e.target.value = '';
+              }}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,image/*,video/*,audio/*"
+            />
+            <span className="font-medium">
+              {uploading ? 'Enviando…' : uploadedName ? `📎 ${uploadedName}` : '+ Upload arquivo (até 20MB)'}
+            </span>
+            {uploadedName && !uploading && (
+              <span className="ml-auto text-[var(--muted)]">{draft.fileType}</span>
+            )}
+          </label>
+          <details className="text-xs text-[var(--muted)]">
+            <summary className="cursor-pointer">ou colar URL externa</summary>
+            <div className="flex gap-2 mt-2">
+              <input
+                value={draft.fileUrl}
+                onChange={(e) => {
+                  setDraft((d) => ({ ...d, fileUrl: e.target.value }));
+                  setUploadedName(null);
+                }}
+                placeholder="https://…"
+                className="input-field text-sm flex-1"
+              />
+              <select
+                value={draft.fileType}
+                onChange={(e) => setDraft((d) => ({ ...d, fileType: e.target.value }))}
+                className="input-field text-sm w-32"
+              >
+                <option value="">tipo</option>
+                <option value="document">document</option>
+                <option value="image">image</option>
+                <option value="video">video</option>
+                <option value="audio">audio</option>
+              </select>
+            </div>
+          </details>
         </div>
         <div className="flex items-center justify-between">
           <label className="text-xs flex items-center gap-1">

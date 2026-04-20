@@ -21,6 +21,8 @@ services:
     image: ai-hunter:latest
     env_file:
       - /opt/ai-hunter/.env.production
+    volumes:
+      - /opt/ai-hunter-uploads:/app/uploads
     networks:
       - network_swarm_public
     deploy:
