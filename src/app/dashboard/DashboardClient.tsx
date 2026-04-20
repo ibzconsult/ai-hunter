@@ -106,7 +106,21 @@ type LeadFormValues = {
   telefone: string;
   site: string;
   contexto: string;
+  contactId?: string | null;
+  companyId?: string | null;
 };
+
+type ContactPick = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  email: string | null;
+  companyId: string | null;
+  company: { id: string; nome: string } | null;
+};
+
+type CompanyPick = { id: string; nome: string; site: string | null };
 
 type ModalState =
   | { mode: 'closed' }
@@ -1256,8 +1270,10 @@ export default function DashboardClient({ tenant, initialInstances }: Props) {
                   telefone: modal.lead.telefone ?? '',
                   site: modal.lead.site ?? '',
                   contexto: modal.lead.contexto ?? '',
+                  contactId: null,
+                  companyId: null,
                 }
-              : { firstName: '', empresa: '', telefone: '', site: '', contexto: '' }
+              : { firstName: '', empresa: '', telefone: '', site: '', contexto: '', contactId: null, companyId: null }
           }
           analysis={modal.mode === 'edit' ? modal.lead.siteAnalysis ?? null : null}
           lead={modal.mode === 'edit' ? modal.lead : null}
@@ -1505,6 +1521,78 @@ function IconKey() {
 
 // ── Modal ─────────────────────────────────────────────────────
 
+function LeadPartyPicker({
+  contactId,
+  companyId,
+  onPickContact,
+  onPickCompany,
+}: {
+  contactId: string | null;
+  companyId: string | null;
+  onPickContact: (c: ContactPick | null) => void;
+  onPickCompany: (c: CompanyPick | null) => void;
+}) {
+  const [contacts, setContacts] = useState<ContactPick[]>([]);
+  const [companies, setCompanies] = useState<CompanyPick[]>([]);
+
+  useEffect(() => {
+    void fetch('/api/contacts')
+      .then((r) => r.json())
+      .then((d) => d.ok && setContacts(d.contacts));
+    void fetch('/api/companies')
+      .then((r) => r.json())
+      .then((d) => d.ok && setCompanies(d.companies));
+  }, []);
+
+  return (
+    <div className="rounded-md border border-[var(--line)] bg-[var(--bg-soft)] p-3 space-y-2">
+      <div className="text-[10px] uppercase tracking-wider font-mono text-[var(--text-muted)]">
+        Vincular (opcional)
+      </div>
+      <div>
+        <label className="text-[11px] text-[var(--muted)]">Contato existente</label>
+        <select
+          value={contactId ?? ''}
+          onChange={(e) => {
+            const id = e.target.value || null;
+            onPickContact(id ? contacts.find((c) => c.id === id) ?? null : null);
+          }}
+          className="input-field mt-1 text-sm"
+        >
+          <option value="">— novo contato —</option>
+          {contacts.map((c) => {
+            const nm = [c.firstName, c.lastName].filter(Boolean).join(' ') || c.phone || c.email || c.id.slice(0, 6);
+            return (
+              <option key={c.id} value={c.id}>
+                {nm}
+                {c.company ? ` · ${c.company.nome}` : ''}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+      <div>
+        <label className="text-[11px] text-[var(--muted)]">Empresa existente</label>
+        <select
+          value={companyId ?? ''}
+          onChange={(e) => {
+            const id = e.target.value || null;
+            onPickCompany(id ? companies.find((c) => c.id === id) ?? null : null);
+          }}
+          className="input-field mt-1 text-sm"
+        >
+          <option value="">— nova empresa —</option>
+          {companies.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 function LeadModal({
   initial,
   analysis,
@@ -1717,6 +1805,30 @@ function LeadModal({
           <LeadConversation leadId={leadId} />
         ) : (
         <>
+        {!leadId && (
+          <LeadPartyPicker
+            contactId={form.contactId ?? null}
+            companyId={form.companyId ?? null}
+            onPickContact={(c) => {
+              setForm((f) => ({
+                ...f,
+                contactId: c?.id ?? null,
+                firstName: c?.firstName ?? f.firstName,
+                telefone: c?.phone ?? f.telefone,
+                companyId: c?.companyId ?? f.companyId ?? null,
+                empresa: c?.company?.nome ?? f.empresa,
+              }));
+            }}
+            onPickCompany={(co) => {
+              setForm((f) => ({
+                ...f,
+                companyId: co?.id ?? null,
+                empresa: co?.nome ?? f.empresa,
+                site: co?.site ?? f.site,
+              }));
+            }}
+          />
+        )}
         <FieldStacked label="Primeiro nome" hint="variável {firstName} na copy">
           <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} className="input-field" />
         </FieldStacked>

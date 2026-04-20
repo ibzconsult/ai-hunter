@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 type Contact = {
@@ -14,6 +15,8 @@ type Contact = {
   company: { id: string; nome: string } | null;
   _count?: { leads: number };
 };
+
+type CompanyLite = { id: string; nome: string };
 
 export default function ContactsClient() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -123,13 +126,28 @@ export default function ContactsClient() {
 }
 
 function ContactCreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const router = useRouter();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const [companies, setCompanies] = useState<CompanyLite[]>([]);
+  const [createOpportunity, setCreateOpportunity] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [companyModal, setCompanyModal] = useState(false);
+
+  useEffect(() => {
+    void loadCompanies();
+  }, []);
+
+  async function loadCompanies() {
+    const res = await fetch('/api/companies');
+    const data = await res.json();
+    if (data.ok) setCompanies(data.companies.map((c: { id: string; nome: string }) => ({ id: c.id, nome: c.nome })));
+  }
 
   async function save() {
     setSaving(true);
@@ -137,11 +155,45 @@ function ContactCreateModal({ onClose, onCreated }: { onClose: () => void; onCre
     const res = await fetch('/api/contacts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName, lastName, email, phone, role }),
+      body: JSON.stringify({
+        firstName: firstName || null,
+        lastName: lastName || null,
+        email: email || null,
+        phone: phone || null,
+        role: role || null,
+        companyId: companyId || null,
+      }),
     });
     const data = await res.json();
+    if (!data.ok) {
+      setSaving(false);
+      return setError(data.error ?? 'Falha');
+    }
+
+    if (createOpportunity) {
+      const leadRes = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactId: data.contact.id,
+          companyId: companyId || null,
+          firstName: firstName || null,
+          telefone: phone || null,
+        }),
+      });
+      const leadData = await leadRes.json();
+      setSaving(false);
+      if (leadData.success) {
+        onCreated();
+        onClose();
+        router.push(`/dashboard?opportunity=${leadData.lead.id}`);
+        return;
+      }
+      setError(leadData.error ?? 'Contato salvo, mas falhou ao criar oportunidade');
+      return;
+    }
+
     setSaving(false);
-    if (!data.ok) return setError(data.error ?? 'Falha');
     onCreated();
     onClose();
   }
@@ -157,10 +209,107 @@ function ContactCreateModal({ onClose, onCreated }: { onClose: () => void; onCre
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="input-field" />
         <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="WhatsApp" className="input-field" />
         <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Cargo" className="input-field" />
+
+        <div>
+          <label className="text-xs text-[var(--muted)]">Empresa</label>
+          <div className="flex gap-2 mt-1">
+            <select
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+              className="input-field flex-1"
+            >
+              <option value="">(sem empresa)</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setCompanyModal(true)}
+              className="btn-ghost px-3 text-xs whitespace-nowrap"
+              title="Criar nova empresa"
+            >
+              + nova
+            </button>
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-[var(--muted)] pt-1">
+          <input
+            type="checkbox"
+            checked={createOpportunity}
+            onChange={(e) => setCreateOpportunity(e.target.checked)}
+          />
+          Criar oportunidade para este contato em seguida
+        </label>
+
         {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost px-3 py-1.5 text-sm">Cancelar</button>
           <button onClick={save} disabled={saving} className="btn-primary px-3 py-1.5 text-sm">
+            {saving ? '…' : 'Criar'}
+          </button>
+        </div>
+      </div>
+
+      {companyModal && (
+        <InlineCompanyModal
+          onClose={() => setCompanyModal(false)}
+          onCreated={async (c) => {
+            await loadCompanies();
+            setCompanyId(c.id);
+            setCompanyModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function InlineCompanyModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (c: { id: string; nome: string }) => void;
+}) {
+  const [nome, setNome] = useState('');
+  const [site, setSite] = useState('');
+  const [segmento, setSegmento] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    if (!nome.trim()) return;
+    setSaving(true);
+    setError(null);
+    const res = await fetch('/api/companies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, site, segmento }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!data.ok) return setError(data.error ?? 'Falha');
+    onCreated(data.company);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-6"
+      onClick={onClose}
+    >
+      <div className="w-full max-w-md surface p-6 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold">Nova empresa</h3>
+        <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome *" className="input-field" autoFocus />
+        <input value={site} onChange={(e) => setSite(e.target.value)} placeholder="Site (https://…)" className="input-field" />
+        <input value={segmento} onChange={(e) => setSegmento(e.target.value)} placeholder="Segmento" className="input-field" />
+        {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="btn-ghost px-3 py-1.5 text-sm">Cancelar</button>
+          <button onClick={save} disabled={saving || !nome.trim()} className="btn-primary px-3 py-1.5 text-sm">
             {saving ? '…' : 'Criar'}
           </button>
         </div>

@@ -117,6 +117,30 @@ export default function ContactDetailClient({ id }: { id: string }) {
     router.push('/dashboard/contacts');
   }
 
+  async function createOpportunity() {
+    if (!contact) return;
+    if (dirty) {
+      if (!confirm('Há alterações pendentes no contato. Salvar antes de criar a oportunidade?')) return;
+      await save();
+    }
+    const res = await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contactId: contact.id,
+        companyId: contact.companyId || null,
+        firstName: contact.firstName || null,
+        telefone: contact.phone || null,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      router.push(`/dashboard?opportunity=${data.lead.id}`);
+    } else {
+      alert(data.error ?? 'Erro ao criar oportunidade');
+    }
+  }
+
   async function onConfirm(choice: 'save' | 'discard' | 'cancel') {
     if (choice === 'cancel') return setConfirmPending(null);
     if (choice === 'save') {
@@ -198,7 +222,12 @@ export default function ContactDetailClient({ id }: { id: string }) {
       )}
 
       <div className="surface p-4">
-        <h2 className="text-sm font-semibold mb-2">Oportunidades ({leads.length})</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold">Oportunidades ({leads.length})</h2>
+          <button onClick={createOpportunity} className="btn-primary px-3 py-1 text-xs">
+            + Nova oportunidade
+          </button>
+        </div>
         {leads.length === 0 ? (
           <p className="text-xs text-[var(--muted)]">Nenhuma oportunidade associada.</p>
         ) : (

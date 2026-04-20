@@ -133,10 +133,17 @@ function CompanyCreateModal({ onClose, onCreated }: { onClose: () => void; onCre
   const [nome, setNome] = useState('');
   const [site, setSite] = useState('');
   const [segmento, setSegmento] = useState('');
+  const [addContact, setAddContact] = useState(false);
+  const [cFirstName, setCFirstName] = useState('');
+  const [cLastName, setCLastName] = useState('');
+  const [cPhone, setCPhone] = useState('');
+  const [cEmail, setCEmail] = useState('');
+  const [cRole, setCRole] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function save() {
+    if (!nome.trim()) return;
     setSaving(true);
     setError(null);
     const res = await fetch('/api/companies', {
@@ -145,8 +152,33 @@ function CompanyCreateModal({ onClose, onCreated }: { onClose: () => void; onCre
       body: JSON.stringify({ nome, site, segmento }),
     });
     const data = await res.json();
+    if (!data.ok) {
+      setSaving(false);
+      return setError(data.error ?? 'Falha');
+    }
+
+    if (addContact && (cFirstName || cLastName || cPhone || cEmail)) {
+      const cRes = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: cFirstName || null,
+          lastName: cLastName || null,
+          phone: cPhone || null,
+          email: cEmail || null,
+          role: cRole || null,
+          companyId: data.company.id,
+          isPrimary: true,
+        }),
+      });
+      const cData = await cRes.json();
+      if (!cData.ok) {
+        setSaving(false);
+        return setError(`Empresa criada. Falhou ao criar contato: ${cData.error ?? 'erro'}`);
+      }
+    }
+
     setSaving(false);
-    if (!data.ok) return setError(data.error ?? 'Falha');
     onCreated();
     onClose();
   }
@@ -158,6 +190,24 @@ function CompanyCreateModal({ onClose, onCreated }: { onClose: () => void; onCre
         <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome *" className="input-field" />
         <input value={site} onChange={(e) => setSite(e.target.value)} placeholder="Site (https://…)" className="input-field" />
         <input value={segmento} onChange={(e) => setSegmento(e.target.value)} placeholder="Segmento" className="input-field" />
+
+        <label className="flex items-center gap-2 text-xs text-[var(--muted)] pt-1">
+          <input type="checkbox" checked={addContact} onChange={(e) => setAddContact(e.target.checked)} />
+          Adicionar contato principal
+        </label>
+
+        {addContact && (
+          <div className="space-y-2 border-l-2 border-[var(--line)] pl-3">
+            <div className="grid grid-cols-2 gap-2">
+              <input value={cFirstName} onChange={(e) => setCFirstName(e.target.value)} placeholder="Nome" className="input-field" />
+              <input value={cLastName} onChange={(e) => setCLastName(e.target.value)} placeholder="Sobrenome" className="input-field" />
+            </div>
+            <input value={cPhone} onChange={(e) => setCPhone(e.target.value)} placeholder="WhatsApp" className="input-field" />
+            <input value={cEmail} onChange={(e) => setCEmail(e.target.value)} placeholder="Email" className="input-field" />
+            <input value={cRole} onChange={(e) => setCRole(e.target.value)} placeholder="Cargo" className="input-field" />
+          </div>
+        )}
+
         {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost px-3 py-1.5 text-sm">Cancelar</button>
